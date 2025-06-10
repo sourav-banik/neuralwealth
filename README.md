@@ -1,110 +1,91 @@
 # neuralwealth
 NeuralWealth is an advanced financial advisor bot that combines large language model (LLM) capabilities with data science and financial analysis to provide dynamic investment recommendations. The system acts as a "robot scientist" that continuously gathers market data, formulates investment hypotheses, tests them, and refines its knowledge to optimize portfolio suggestions.
-System Architecture
-Core Components
 
-    1. LLM Brain (LLaMA-3-70B)
+NeuralWealth System Architecture
+1. Data Layer
 
-        * Base knowledge repository and reasoning engine
+    Components:
 
-        * Hypothesis generation and natural language processing
+        Market Data API (yFinance)
 
-        * Explanation and recommendation formulation
+        News/Sentiment Scraper (Twitter, Google News, Reddit)
 
-    2. Data Acquisition Layer
+        Macro Trends (FRED)
 
-        * Financial data: yfinance (stock prices, fundamentals)
+    Functionality:
 
-        * Macroeconomic data: Macrotrends, FRED
+        Ingests real-time market data, news, and macroeconomic indicators.
 
-        * News/sentiment: Twitter API, Google RSS feeds
+        Preprocesses data (normalization, feature engineering).
 
-        * Alternative data sources (as available)
+        Outputs structured data for analysis.
 
-    3. Hypothesis Engine
+2. Robot Scientist (AI Research Lab)
 
-        * Formulates testable investment theses based on:
+    Components:
 
-            => LLM's financial knowledge
+        Hypothesis Generator (LLM)
 
-            => Current market conditions
+            Uses LLaMA-3 to propose investment theses (e.g., "AI stocks will outperform in Q3").
 
-            => Identified data patterns
+        Backtesting Engine (RL)
 
-    4. Backtesting System
+            Tests hypotheses via reinforcement learning (PPO/SAC).
 
-        * Historical simulation of investment strategies
+            Simulates trades on historical data.
 
-        * Risk/reward analysis
+        Auto-Experiment Designer
 
-        * Hypothesis validation/rejection
+            Iterates on failed hypotheses (e.g., adjusts timeframes, asset filters).
 
-    5. Knowledge Refinement Loop
+        Knowledge Graph
 
-        * Updates LLM's financial understanding based on backtest results
+            Stores validated strategies (e.g., "NVDA rallies post-earnings").
 
-        * Stores validated strategies in a retrievable format
+    Workflow:
 
-    6. Portfolio Optimization
+        LLM generates hypotheses → RL backtests them.
 
-        * Modern portfolio theory implementation
+        Successful strategies → Added to Knowledge Graph.
 
-        * Risk-adjusted return optimization
+        Failed strategies → Auto-Experiment Designer tweaks parameters → Retest.
 
-        * Dynamic asset allocation
+3. Portfolio Management (RL Agent)
 
-    7. User Interface
+    Components:
 
-        * Web-based dashboard
+        RL Portfolio Agent
 
-        * Natural language interaction
+            State: Portfolio holdings + market conditions.
 
-        * Visualization of recommendations and performance
+            Action: Buy/sell/rebalance.
 
-Workflow
+            Reward: Risk-adjusted returns (Sharpe ratio).
 
-    1. Data Collection Phase
+        Rebalancing Engine
 
-        * Continuous scraping/API calls to gather fresh market data
+            Executes trades via broker API (Alpaca, Interactive Brokers).
 
-        * Data cleaning and normalization
+            Enforces constraints (e.g., max sector exposure).
 
-        * Storage in structured database
+    Workflow:
 
-    2. Analysis & Hypothesis Generation
+        Queries Knowledge Graph for validated strategies.
 
-        * LLM reviews current portfolio and market conditions
+        RL Agent selects optimal actions → Rebalancing Engine executes.
 
-        * Identifies potential opportunities based on patterns
+        Updates User Portfolio.
 
-        * Formulates specific, testable investment hypotheses (e.g., "Tech stocks will outperform in Q3 due to anticipated Fed rate cuts")
+4. User Interface
 
-    3. Backtesting & Validation
+    Components:
 
-        * Historical simulation of hypothesis
+        Chat Interface (Gradio/Streamlit)
 
-        * Statistical significance testing
+            Users ask questions (e.g., "Why did you sell TSLA?").
 
-        * Risk assessment
+            LLM responds with explanations ("TSLA hit target price + earnings risk increased").
 
-    4. Knowledge Update
+        User Feedback
 
-        * Successful hypotheses added to knowledge base
-
-        * Failed hypotheses analyzed for pattern avoidance
-
-    5. Portfolio Recommendation
-
-        * Optimal allocation based on validated strategies
-
-        * Risk-adjusted position sizing
-
-        * Clear entry/exit criteria
-
-    6. User Presentation
-
-        * Natural language explanation of recommendations
-
-        * Visualizations of expected performance
-
-        * Risk metrics and alternative scenarios
+            Thumbs up/down → Fine-tunes RL reward function.
