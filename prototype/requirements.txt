@@ -1,0 +1,6 @@
+yfinance >= 0.2.63
+stable_baselines3 >= 2.6.0
+transformers >= 4.52.4
+gym >= 0.26.2
+shimmy >= 2.0
+matplotlib >= 3.10.3 
