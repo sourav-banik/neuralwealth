@@ -1,6 +1,6 @@
 import pandas as pd
 from fredapi import Fred
-from neuralwealth.data_layer.collectors.constants.fred_series import fred_series_ids
+from neuralwealth.data_layer.collectors.resources.fred_series import fred_series_ids
 from typing import Dict
 
 class FREDCollector:
