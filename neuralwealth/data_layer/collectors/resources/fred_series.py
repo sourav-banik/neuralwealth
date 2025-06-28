@@ -1,101 +1,90 @@
-# FRED Series IDs for critical indicators
-fred_series_ids = {
-    "Real GDP": "GDPC1",                     # Real Gross Domestic Product (Quarterly, SA)
-    "Nominal GDP": "GDP",                    # Nominal Gross Domestic Product (Quarterly, SA)
-    "GDP Deflator": "GDPDEF",                # GDP Price Deflator (Quarterly, SA)
-    "CPI Inflation": "CPIAUCSL",             # Consumer Price Index for All Urban Consumers (Monthly, SA)
-    "Core CPI": "CPILFESL",                 # Core CPI (excl. Food and Energy, Monthly, SA)
-    "PCE Inflation": "PCEPI",                # Personal Consumption Expenditures Price Index (Monthly, SA)
-    "Core PCE": "PCEPILFE",                 # Core PCE Price Index (excl. Food and Energy, Monthly, SA)
-    "Producer Price Index": "PPIACO",        # PPI for All Commodities (Monthly, NSA)
-    "Core PPI": "PPIFGS",                   # PPI for Final Goods (Monthly, SA)
-    "Unemployment Rate": "UNRATE",           # Civilian Unemployment Rate (Monthly, SA)
-    "Nonfarm Payrolls": "PAYEMS",            # Total Nonfarm Payroll Employment (Monthly, SA)
-    "Labor Force Participation": "CIVPART",  # Civilian Labor Force Participation Rate (Monthly, SA)
-    "U-6 Unemployment": "U6RATE",            # Broader Unemployment Rate (Monthly, SA)
-    "Average Hourly Earnings": "CES0500000003", # Avg Hourly Earnings of Production Employees (Monthly, SA)
-    "Fed Funds Rate": "FEDFUNDS",            # Effective Federal Funds Rate (Monthly)
-    "2-Year Treasury Yield": "DGS2",         # 2-Year Treasury Note Yield (Daily)
-    "10-Year Treasury Yield": "DGS10",       # 10-Year Treasury Note Yield (Daily)
-    "30-Year Treasury Yield": "DGS30",       # 30-Year Treasury Bond Yield (Daily)
-    "3-Month Treasury Bill": "TB3MS",        # 3-Month Treasury Bill Secondary Market Rate (Monthly)
-    "10-Year TIPS Spread": "T10YIE",        # 10-Year Breakeven Inflation Rate (Daily)
-    "S&P 500 Index": "SP500",               # S&P 500 Index (Daily)
-    "VIX Volatility Index": "VIXCLS",       # CBOE Volatility Index (Daily)
-    "Consumer Confidence": "UMCSENT",       # University of Michigan Consumer Sentiment (Monthly)
-    "Retail Sales": "RSXFS",                # Advance Retail Sales (Monthly, SA)
-    "Industrial Production": "INDPRO",       # Industrial Production Index (Monthly, SA)
-    "Capacity Utilization": "TCU",           # Total Capacity Utilization (Monthly, SA)
-    "Manufacturing PMI": "NAPMPMI",         # ISM Manufacturing PMI (Monthly)
-    "Non-Manufacturing PMI": "NAPMNMI",     # ISM Non-Manufacturing PMI (Monthly)
-    "Housing Starts": "HOUST",              # Housing Starts (Monthly, SA)
-    "Building Permits": "PERMIT",            # Building Permits (Monthly, SA)
-    "Existing Home Sales": "EXHOSLUS",      # Existing Home Sales (Monthly, SA)
-    "New Home Sales": "HSN1F",              # New Single-Family Home Sales (Monthly, SA)
-    "Case-Shiller Home Price": "CSUSHPINSA", # S&P/Case-Shiller U.S. National Home Price Index (Monthly, SA)
-    "Mortgage Rates 30-Year": "MORTGAGE30US", # 30-Year Fixed Mortgage Rate (Weekly)
-    "Personal Income": "PI",                 # Personal Income (Monthly, SA)
-    "Personal Consumption": "PCEC",          # Personal Consumption Expenditures (Monthly, SA)
-    "Personal Savings Rate": "PSAVERT",      # Personal Saving Rate (Monthly, SA)
-    "Disposable Income": "DSPIC96",         # Real Disposable Personal Income (Monthly, SA)
-    "Consumer Credit": "TOTALSL",           # Total Consumer Credit Outstanding (Monthly, SA)
-    "Trade Balance": "BOPGSTB",             # Goods and Services Trade Balance (Monthly, SA)
-    "Exports": "EXPGS",                     # U.S. Exports of Goods and Services (Monthly, SA)
-    "Imports": "IMPGS",                     # U.S. Imports of Goods and Services (Monthly, SA)
-    "Current Account Balance": "NETFI",      # Net International Investment Position (Quarterly)
-    "M2 Money Supply": "M2SL",              # M2 Money Stock (Monthly, SA)
-    "M1 Money Supply": "M1SL",              # M1 Money Stock (Monthly, SA)
-    "Velocity of M2": "M2V",                # Velocity of M2 Money Stock (Quarterly)
-    "Bank Reserves": "TOTRESNS",            # Total Reserves of Depository Institutions (Monthly, NSA)
-    "Commercial Bank Loans": "TOTLL",       # Total Loans and Leases at Commercial Banks (Monthly, SA)
-    "Corporate Bond Yield AAA": "AAA",      # Moody’s Seasoned Aaa Corporate Bond Yield (Monthly)
-    "Corporate Bond Yield BAA": "BAA",      # Moody’s Seasoned Baa Corporate Bond Yield (Monthly)
-    "High Yield Spread": "BAMLH0A0HYM2",    # ICE BofA US High Yield Index Option-Adjusted Spread (Daily)
-    "TED Spread": "TEDRATE",                # TED Spread (Daily)
-    "Yield Curve 10Y-2Y": "T10Y2Y",         # 10-Year minus 2-Year Treasury Yield Spread (Daily)
-    "Yield Curve 10Y-3M": "T10Y3M",         # 10-Year minus 3-Month Treasury Yield Spread (Daily)
-    "Real Retail Sales": "RRSFS",           # Real Retail and Food Services Sales (Monthly, SA)
-    "Durable Goods Orders": "DGORDER",      # Manufacturers’ New Orders: Durable Goods (Monthly, SA)
-    "Nondurable Goods Orders": "NDGORDER",  # Manufacturers’ New Orders: Nondurable Goods (Monthly, SA)
-    "Business Inventories": "BUSINV",       # Total Business Inventories (Monthly, SA)
-    "Inventory to Sales Ratio": "ISRATIO",  # Total Business Inventories to Sales Ratio (Monthly, SA)
-    "Leading Economic Index": "USSLIND",    # Conference Board Leading Economic Index (Monthly)
-    "Coincident Economic Index": "USSLCOI", # Conference Board Coincident Economic Index (Monthly)
-    "Lagging Economic Index": "USSLAGI",    # Conference Board Lagging Economic Index (Monthly)
-    "Initial Jobless Claims": "ICSA",       # Initial Jobless Claims (Weekly, SA)
-    "Continuing Claims": "CCSA",            # Continuing Jobless Claims (Weekly, SA)
-    "Productivity": "OPHNFB",               # Nonfarm Business Sector Productivity (Quarterly, SA)
-    "Unit Labor Costs": "ULCNFB",           # Nonfarm Business Sector Unit Labor Costs (Quarterly, SA)
-    "Employment Cost Index": "ECI",         # Employment Cost Index (Quarterly, SA)
-    "Consumer Debt Service Ratio": "TDSP",  # Household Debt Service Payments as % of Disposable Income (Quarterly)
-    "Household Debt to GDP": "HDTGPD",      # Household Debt to GDP Ratio (Quarterly)
-    "Commercial Real Estate Prices": "CRE", # Commercial Real Estate Price Index (Quarterly)
-    "Construction Spending": "TTLCONS",     # Total Construction Spending (Monthly, SA)
-    "Vehicle Sales": "TOTALSA",             # Total Vehicle Sales (Monthly, SA)
-    "Oil Prices WTI": "DCOILWTICO",        # Crude Oil Prices: West Texas Intermediate (Daily)
-    "Gold Ore PPI": "WPU10210501",          # Producer Price Index for Gold Ores (Monthly, NSA)
-    "Commodity Price Index": "PALLFNFINDEXQ", # Global Price Index of All Commodities (Quarterly)
-    "Baltic Dry Index": "BALTIC",           # Baltic Dry Index (Daily)
-    "Corporate Profits": "CP",              # Corporate Profits After Tax (Quarterly, SA)
-    "Federal Debt to GDP": "GFDEGDQ188S",  # Federal Debt as % of GDP (Quarterly)
-    "Budget Deficit": "MTSR133FMS",        # Federal Surplus or Deficit (Monthly)
-    "Consumer Price Index Shelter": "CUSR0000SAH1", # CPI: Shelter (Monthly, SA)
-    "Real Personal Consumption": "PCE96",   # Real Personal Consumption Expenditures (Monthly, SA)
-    "Export Price Index": "IQ",             # Export Price Index (Monthly, SA)
-    "Import Price Index": "IQIM",           # Import Price Index (Monthly, SA)
-    "Small Business Optimism": "SBOPTIM",   # NFIB Small Business Optimism Index (Monthly)
-    "Consumer Loans": "CONSUMER",           # Consumer Loans at All Commercial Banks (Monthly, SA)
-    "Bank Prime Rate": "MPRIME",            # Bank Prime Loan Rate (Monthly)
-    "Delinquency Rate Mortgages": "DRSFRMACBS", # Delinquency Rate on Single-Family Mortgages (Quarterly)
-    "Delinquency Rate Consumer Loans": "DRCLACBS", # Delinquency Rate on Consumer Loans (Quarterly)
-    "Net Interest Margin": "USNIM",         # Net Interest Margin for U.S. Banks (Quarterly)
-    "Bank Credit": "TOTBKCR",               # All Commercial Banks Credit (Monthly, SA)
-    "Money Market Funds": "MMMFFAQ",        # Money Market Funds Assets (Quarterly)
-    "Housing Affordability": "FIXHAI",      # Housing Affordability Index (Monthly)
-    "Retail Inventories": "RETAILIRSA",     # Retail Inventories (Monthly, SA)
-    "Chicago Fed National Activity": "CFNAI", # Chicago Fed National Activity Index (Monthly)
-    "Philly Fed Manufacturing": "MPHIL",    # Philadelphia Fed Manufacturing Index (Monthly)
-    "Empire State Manufacturing": "GACMAN", # Empire State Manufacturing Survey (Monthly)
-    "Pending Home Sales": "PHSI",           # Pending Home Sales Index (Monthly, SA)
-    "Credit Card Debt": "CCBCRV",           # Revolving Consumer Credit Owned by Commercial Banks (Monthly, SA)
-}
+# List of dictionaries containing FRED series IDs, names, and descriptions
+fred_series = [
+    {"id": "GDPC1", "name": "Real GDP", "description": "Real Gross Domestic Product (Quarterly, SA)"},
+    {"id": "GDP", "name": "Nominal GDP", "description": "Nominal Gross Domestic Product (Quarterly, SA)"},
+    {"id": "GDPDEF", "name": "GDP Deflator", "description": "GDP Price Deflator (Quarterly, SA)"},
+    {"id": "CPIAUCSL", "name": "CPI Inflation", "description": "Consumer Price Index for All Urban Consumers (Monthly, SA)"},
+    {"id": "CPILFESL", "name": "Core CPI", "description": "Core CPI (excl. Food and Energy, Monthly, SA)"},
+    {"id": "PCEPI", "name": "PCE Inflation", "description": "Personal Consumption Expenditures Price Index (Monthly, SA)"},
+    {"id": "PCEPILFE", "name": "Core PCE", "description": "Core PCE Price Index (excl. Food and Energy, Monthly, SA)"},
+    {"id": "PPIACO", "name": "Producer Price Index", "description": "PPI for All Commodities (Monthly, NSA)"},
+    {"id": "PPIFGS", "name": "Core PPI", "description": "PPI for Final Goods (Monthly, SA)"},
+    {"id": "UNRATE", "name": "Unemployment Rate", "description": "Civilian Unemployment Rate (Monthly, SA)"},
+    {"id": "PAYEMS", "name": "Nonfarm Payrolls", "description": "Total Nonfarm Payroll Employment (Monthly, SA)"},
+    {"id": "CIVPART", "name": "Labor Force Participation", "description": "Civilian Labor Force Participation Rate (Monthly, SA)"},
+    {"id": "U6RATE", "name": "U-6 Unemployment", "description": "Broader Unemployment Rate (Monthly, SA)"},
+    {"id": "CES0500000003", "name": "Average Hourly Earnings", "description": "Avg Hourly Earnings of Production Employees (Monthly, SA)"},
+    {"id": "FEDFUNDS", "name": "Fed Funds Rate", "description": "Effective Federal Funds Rate (Monthly)"},
+    {"id": "DGS2", "name": "2-Year Treasury Yield", "description": "2-Year Treasury Note Yield (Daily)"},
+    {"id": "DGS10", "name": "10-Year Treasury Yield", "description": "10-Year Treasury Note Yield (Daily)"},
+    {"id": "DGS30", "name": "30-Year Treasury Yield", "description": "30-Year Treasury Bond Yield (Daily)"},
+    {"id": "TB3MS", "name": "3-Month Treasury Bill", "description": "3-Month Treasury Bill Secondary Market Rate (Monthly)"},
+    {"id": "T10YIE", "name": "10-Year TIPS Spread", "description": "10-Year Breakeven Inflation Rate (Daily)"},
+    {"id": "SP500", "name": "S&P 500 Index", "description": "S&P 500 Index (Daily)"},
+    {"id": "VIXCLS", "name": "VIX Volatility Index", "description": "CBOE Volatility Index (Daily)"},
+    {"id": "UMCSENT", "name": "Consumer Confidence", "description": "University of Michigan Consumer Sentiment (Monthly)"},
+    {"id": "RSXFS", "name": "Retail Sales", "description": "Advance Retail Sales (Monthly, SA)"},
+    {"id": "INDPRO", "name": "Industrial Production", "description": "Industrial Production Index (Monthly, SA)"},
+    {"id": "TCU", "name": "Capacity Utilization", "description": "Total Capacity Utilization (Monthly, SA)"},
+    {"id": "IPMAN", "name": "Manufacturing Production", "description": "Industrial Production: Manufacturing (Monthly, SA)"},
+    {"id": "HOUST", "name": "Housing Starts", "description": "Housing Starts (Monthly, SA)"},
+    {"id": "PERMIT", "name": "Building Permits", "description": "Building Permits (Monthly, SA)"},
+    {"id": "HSN1F", "name": "New Home Sales", "description": "New Single-Family Home Sales (Monthly, SA)"},
+    {"id": "CSUSHPINSA", "name": "Case-Shiller Home Price", "description": "S&P/Case-Shiller U.S. National Home Price Index (Monthly, SA)"},
+    {"id": "MORTGAGE30US", "name": "Mortgage Rates 30-Year", "description": "30-Year Fixed Mortgage Rate (Weekly)"},
+    {"id": "PI", "name": "Personal Income", "description": "Personal Income (Monthly, SA)"},
+    {"id": "PCEC", "name": "Personal Consumption", "description": "Personal Consumption Expenditures (Monthly, SA)"},
+    {"id": "PSAVERT", "name": "Personal Savings Rate", "description": "Personal Saving Rate (Monthly, SA)"},
+    {"id": "DSPIC96", "name": "Disposable Income", "description": "Real Disposable Personal Income (Monthly, SA)"},
+    {"id": "TOTALSL", "name": "Consumer Credit", "description": "Total Consumer Credit Outstanding (Monthly, SA)"},
+    {"id": "BOPGSTB", "name": "Trade Balance", "description": "Goods and Services Trade Balance (Monthly, SA)"},
+    {"id": "EXPGS", "name": "Exports", "description": "U.S. Exports of Goods and Services (Monthly, SA)"},
+    {"id": "IMPGS", "name": "Imports", "description": "U.S. Imports of Goods and Services (Monthly, SA)"},
+    {"id": "NETFI", "name": "Current Account Balance", "description": "Net International Investment Position (Quarterly)"},
+    {"id": "M2SL", "name": "M2 Money Supply", "description": "M2 Money Stock (Monthly, SA)"},
+    {"id": "M1SL", "name": "M1 Money Supply", "description": "M1 Money Stock (Monthly, SA)"},
+    {"id": "M2V", "name": "Velocity of M2", "description": "Velocity of M2 Money Stock (Quarterly)"},
+    {"id": "TOTRESNS", "name": "Bank Reserves", "description": "Total Reserves of Depository Institutions (Monthly, NSA)"},
+    {"id": "TOTLL", "name": "Commercial Bank Loans", "description": "Total Loans and Leases at Commercial Banks (Monthly, SA)"},
+    {"id": "AAA", "name": "Corporate Bond Yield AAA", "description": "Moody’s Seasoned Aaa Corporate Bond Yield (Monthly)"},
+    {"id": "BAA", "name": "Corporate Bond Yield BAA", "description": "Moody’s Seasoned Baa Corporate Bond Yield (Monthly)"},
+    {"id": "BAMLH0A0HYM2", "name": "High Yield Spread", "description": "ICE BofA US High Yield Index Option-Adjusted Spread (Daily)"},
+    {"id": "TEDRATE", "name": "TED Spread", "description": "TED Spread (Daily)"},
+    {"id": "T10Y2Y", "name": "Yield Curve 10Y-2Y", "description": "10-Year minus 2-Year Treasury Yield Spread (Daily)"},
+    {"id": "T10Y3M", "name": "Yield Curve 10Y-3M", "description": "10-Year minus 3-Month Treasury Yield Spread (Daily)"},
+    {"id": "RRSFS", "name": "Real Retail Sales", "description": "Real Retail and Food Services Sales (Monthly, SA)"},
+    {"id": "DGORDER", "name": "Durable Goods Orders", "description": "Manufacturers’ New Orders: Durable Goods (Monthly, SA)"},
+    {"id": "AMNMNO", "name": "Nondurable Goods Orders", "description": "Manufacturers’ New Orders: Nondurable Goods (Monthly, SA)"},
+    {"id": "BUSINV", "name": "Business Inventories", "description": "Total Business Inventories (Monthly, SA)"},
+    {"id": "ISRATIO", "name": "Inventory to Sales Ratio", "description": "Total Business Inventories to Sales Ratio (Monthly, SA)"},
+    {"id": "USSLIND", "name": "Leading Economic Index", "description": "Conference Board Leading Economic Index (Monthly)"},
+    {"id": "ICSA", "name": "Initial Jobless Claims", "description": "Initial Jobless Claims (Weekly, SA)"},
+    {"id": "CCSA", "name": "Continuing Claims", "description": "Continuing Jobless Claims (Weekly, SA)"},
+    {"id": "OPHNFB", "name": "Productivity", "description": "Nonfarm Business Sector Productivity (Quarterly, SA)"},
+    {"id": "ULCNFB", "name": "Unit Labor Costs", "description": "Nonfarm Business Sector Unit Labor Costs (Quarterly, SA)"},
+    {"id": "ECIWAG", "name": "Employment Cost Index: Wages and Salaries", "description": "Employment Cost Index (Quarterly, SA)"},
+    {"id": "TDSP", "name": "Consumer Debt Service Ratio", "description": "Household Debt Service Payments as % of Disposable Income (Quarterly)"},
+    {"id": "HDTGPDUSQ163N", "name": "Household Debt to GDP", "description": "Household Debt to GDP Ratio (Quarterly)"},
+    {"id": "COMREPUSQ159N", "name": "Commercial Real Estate Prices", "description": "Commercial Real Estate Price Index (Quarterly)"},
+    {"id": "TTLCONS", "name": "Construction Spending", "description": "Total Construction Spending (Monthly, SA)"},
+    {"id": "TOTALSA", "name": "Vehicle Sales", "description": "Total Vehicle Sales (Monthly, SA)"},
+    {"id": "DCOILWTICO", "name": "Oil Prices WTI", "description": "Crude Oil Prices: West Texas Intermediate (Daily)"},
+    {"id": "WPU10210501", "name": "Gold Ore PPI", "description": "Producer Price Index for Gold Ores (Monthly, NSA)"},
+    {"id": "PALLFNFINDEXQ", "name": "Commodity Price Index", "description": "Global Price Index of All Commodities (Quarterly)"},
+    {"id": "CP", "name": "Corporate Profits", "description": "Corporate Profits After Tax (Quarterly, SA)"},
+    {"id": "GFDEGDQ188S", "name": "Federal Debt to GDP", "description": "Federal Debt as % of GDP (Quarterly)"},
+    {"id": "MTSR133FMS", "name": "Budget Deficit", "description": "Federal Surplus or Deficit (Monthly)"},
+    {"id": "CUSR0000SAH1", "name": "Consumer Price Index Shelter", "description": "CPI: Shelter (Monthly, SA)"},
+    {"id": "PCEC96", "name": "Real Personal Consumption", "description": "Real Personal Consumption Expenditures (Monthly, SA)"},
+    {"id": "IQ", "name": "Export Price Index", "description": "Export Price Index (Monthly, SA)"},
+    {"id": "CONSUMER", "name": "Consumer Loans", "description": "Consumer Loans at All Commercial Banks (Monthly, SA)"},
+    {"id": "MPRIME", "name": "Bank Prime Rate", "description": "Bank Prime Loan Rate (Monthly)"},
+    {"id": "DRSFRMACBS", "name": "Delinquency Rate Mortgages", "description": "Delinquency Rate on Single-Family Mortgages (Quarterly)"},
+    {"id": "DRCLACBS", "name": "Delinquency Rate Consumer Loans", "description": "Delinquency Rate on Consumer Loans (Quarterly)"},
+    {"id": "USNIM", "name": "Net Interest Margin", "description": "Net Interest Margin for U.S. Banks (Quarterly)"},
+    {"id": "TOTBKCR", "name": "Bank Credit", "description": "All Commercial Banks Credit (Monthly, SA)"},
+    {"id": "FIXHAI", "name": "Housing Affordability", "description": "Housing Affordability Index (Monthly)"},
+    {"id": "RETAILIRSA", "name": "Retail Inventories", "description": "Retail Inventories (Monthly, SA)"},
+    {"id": "CFNAI", "name": "Chicago Fed National Activity", "description": "Chicago Fed National Activity Index (Monthly)"},
+    {"id": "PENLISCOUUS", "name": "Pending Listing Count", "description": "Housing Inventory: Pending Listing Count in the United States (Monthly, SA)"}
+]
