@@ -1,6 +1,6 @@
 import pandas as pd
 from fredapi import Fred
-from neuralwealth.data_layer.collectors.constants.fred_series import fred_series_ids
+from neuralwealth.data_layer.collectors.resources.fred_series import fred_series
 from typing import Dict
 
 class FREDCollector:
@@ -18,7 +18,7 @@ class FREDCollector:
         """
         self.client = Fred(api_key=api_key)
         # FRED Series IDs for critical indicators
-        self.series_ids = fred_series_ids
+        self.series_ids = fred_series
 
     def fetch_series(self, series_id: str, **kwargs) -> pd.DataFrame:
         """
@@ -46,8 +46,8 @@ class FREDCollector:
         """
         try:
             macro_data = {}
-            for name, series_id in self.series_ids.items():
-                macro_data[name] = self.fetch_series(series_id)
+            for series in self.series_ids:
+                macro_data[series['name']] = self.fetch_series(series['id'])
             return macro_data
         except Exception as e:
-            raise ValueError(f"FRED API failed for {series_id}: {str(e)}")
+            raise ValueError(f"FRED API failed: {str(e)}")
