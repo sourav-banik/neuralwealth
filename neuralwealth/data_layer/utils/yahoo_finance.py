@@ -63,6 +63,7 @@ def get_yahoo_symbol(trading_symbol, asset_class, market=None, **kwargs):
     market = market.upper() if market else None
     
     if asset_class.lower() == 'stock':
+        symbol = symbol.replace('.', '-')  # e.g., BRK.A -> BRK-A
         if market and market in MARKET_SUFFIXES:
             suffix = MARKET_SUFFIXES[market]
             return f"{symbol}.{suffix}" if suffix else symbol
@@ -79,7 +80,7 @@ def get_yahoo_symbol(trading_symbol, asset_class, market=None, **kwargs):
         if not all([expiry, strike, option_type]):
             raise ValueError("Options require expiry, strike, and option_type parameters")
             
-        strike_formatted = f"{float(strike):08.0f}" if strike.is_integer() else f"{float(strike)*1000:08.0f}"
+        strike_formatted = f"{float(strike):08.0f}" if float(strike).is_integer() else f"{float(strike)*1000:08.0f}"
         return f"{symbol}{expiry}{option_type}{strike_formatted}"
     
     elif asset_class.lower() == 'future':
@@ -165,11 +166,11 @@ def parse_yahoo_symbol(yahoo_symbol):
     elif '-' in symbol and (symbol.endswith('-USD') or len(symbol.split('-')) == 2):
         result['asset_class'] = 'crypto'
         result['trading_symbol'] = symbol.split('-')[0]
-    elif '.' in symbol:
+    elif '.' in symbol and not '-' in symbol:
         # International stock
         base, suffix = symbol.split('.')
         result['asset_class'] = 'stock'
-        result['trading_symbol'] = base
+        result['trading_symbol'] = base.replace('-', '.')  # e.g., BRK-A -> BRK.A
         result['market'] = SUFFIX_MARKETS.get(suffix, suffix)
     elif len(symbol) > 12 and any(c in symbol for c in ['C', 'P']):
         # Option symbol (e.g., AAPL240621C00150000)
@@ -195,10 +196,10 @@ def parse_yahoo_symbol(yahoo_symbol):
         except:
             # Fallback to regular stock
             result['asset_class'] = 'stock'
-            result['trading_symbol'] = symbol
+            result['trading_symbol'] = symbol.replace('-', '.')  # e.g., BRK-A -> BRK.A
     else:
         # Default to US stock/ETF
         result['asset_class'] = 'stock' if len(symbol) <= 5 else 'etf'
-        result['trading_symbol'] = symbol
+        result['trading_symbol'] = symbol.replace('-', '.')  # e.g., BRK-A -> BRK.A
     
     return result

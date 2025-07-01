@@ -2,7 +2,7 @@ import sys
 sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
 
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
-from neuralwealth.env import env_variables
+from neuralwealth.env import data_pipeline_env
 
 def main():
     """
@@ -10,7 +10,7 @@ def main():
     """
     try:
         
-        collector = FREDCollector(api_key=env_variables['fred_api_key'])
+        collector = FREDCollector(api_key=data_pipeline_env['fred_api_key'])
 
         # Fetch and display data for a single series (e.g., GDP)
         print("Fetching time series data for GDP...")
