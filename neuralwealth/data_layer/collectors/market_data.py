@@ -1,6 +1,6 @@
 import yfinance as yf
 import pandas as pd
-from typing import List, Dict
+from typing import Dict
 
 class MarketDataCollector:
     """
@@ -27,20 +27,21 @@ class MarketDataCollector:
         except Exception as e:
             raise ValueError(f"yFinance failed: {str(e)}")
 
-    def get_market_data(self, tickers: List[str], period: str = "1mo") -> pd.DataFrame:
+    def get_market_data(self, ticker: str, period: str = "1mo") -> pd.DataFrame:
         """
-        Fetch OHLCV data for tickers.
+        Fetch OHLCV data for a ticker.
 
         Args:
-            tickers: List of yahoo finance symbols
+            tickers: yahoo finance symbol
             market_data: Period of data ('1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max')
             
         Returns:
-            Dataframe contains historical data for tickers
+            Dataframe contains historical data for the ticker
         """
         try:
-            data = self.yf_client.download(tickers, period=period, group_by="ticker")
-            return data
+            data = self.yf_client.Ticker(ticker)
+            history = data.history(period)
+            return history
         except Exception as e:
             raise ValueError(f"yFinance failed: {str(e)}")
     

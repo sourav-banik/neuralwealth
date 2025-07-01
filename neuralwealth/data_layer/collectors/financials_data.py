@@ -29,6 +29,36 @@ class FinancialsCollector:
             }
         )
 
+    def get_financials(self, symbol: str) -> Dict[str, pd.DataFrame]:
+        """
+        Retrieves financial statements for a given ticker symbol from MacroTrends or Yahoo Finance.
+
+        Args:
+            symbol (str): The stock ticker symbol to fetch financials for.
+
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary containing financial statements as transposed DataFrames.
+                Keys may include 'income_statement', 'balance_sheet', 'cash_flow', etc.
+
+        Notes:
+            - Checks if the ticker exists in the MacroTrends screener.
+            - If found, fetches detailed financials from MacroTrends.
+            - If not found, falls back to short-term financials from Yahoo Finance.
+        """
+        # Search for the ticker in the MacroTrends screener
+        macrotrends_symbol = next(
+            (ticker for ticker in self.macrotrends_client['screener'] if ticker['symbol'] == symbol.upper()),
+            None
+        )
+
+        # Fetch financials based on availability in MacroTrends
+        if macrotrends_symbol:
+            return self.scrape_macrotrends_financials(
+                symbol=macrotrends_symbol['symbol'],
+                company_name=macrotrends_symbol['name']
+            )
+        return self.scrape_yfinance_financials(ticker=symbol.upper())
+
     def scrape_yfinance_financials(self, symbol: str) -> Dict[str, pd.DataFrame]:
         """
         Scrapes financial data for a given stock symbol from yFinance with delays between requests,

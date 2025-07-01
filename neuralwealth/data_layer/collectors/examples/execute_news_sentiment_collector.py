@@ -2,7 +2,7 @@ import sys
 sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
 
 from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentCollector
-from neuralwealth.env import env_variables
+from neuralwealth.env import data_pipeline_env
 
 def main():
     """
@@ -11,7 +11,7 @@ def main():
     try:
         
         # Initialize the collector
-        collector = NewsSentimentCollector(twitter_bearer_token=env_variables['twitter_bearer_token'])
+        collector = NewsSentimentCollector(twitter_bearer_token=data_pipeline_env['twitter_bearer_token'])
 
         # Fetch and display Twitter sentiment data for NVDA
         print("Fetching Twitter sentiment data for NVDA...")

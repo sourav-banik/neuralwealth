@@ -29,7 +29,7 @@ def main():
 
         # Fetch and display OHLCV data for NVDA (1 month period)
         print("\nFetching OHLCV data for NVDA (1 month)...")
-        market_data = collector.get_market_data(["NVDA"], period="1mo")
+        market_data = collector.get_market_data("NVDA", period="1mo")
         
         # Display first few rows of the DataFrame
         print("\nOHLCV Data for NVDA (first 5 rows):")
