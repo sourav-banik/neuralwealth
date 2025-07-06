@@ -1,20 +1,15 @@
 from typing import List, Dict, Any
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.write_api import WriteOptions
+from influxdb_client.client.write_api import SYNCHRONOUS
 import pandas as pd
 import json
 
 class InfluxDBStorage:
     def __init__(self, url: str, token: str, org: str, bucket: str):
-        self.client = InfluxDBClient(url=url, token=token, org=org)
+        self.client = InfluxDBClient(url=url, token=token, org=org, timeout=900000)
         self.bucket = bucket
         self.write_api = self.client.write_api(
-            write_options=WriteOptions(
-                batch_size=1000,
-                flush_interval=10000,
-                jitter_interval=2000,
-                retry_interval=5000
-            )
+            write_options=SYNCHRONOUS
         )
         self.query_api = self.client.query_api()
     
@@ -62,7 +57,8 @@ class InfluxDBStorage:
                        df: pd.DataFrame, 
                        measurement: str, 
                        tag_columns: list = None,
-                       time_col: str = 'time'):
+                       time_col: str = 'time',
+                       batch_size: int = 100):
         """
         Write DataFrame to InfluxDB.
         
@@ -73,54 +69,51 @@ class InfluxDBStorage:
             time_col: Column containing timestamps
         """
         try:
-            self.write_api.write(
-                bucket=self.bucket,
-                record=df,
-                data_frame_measurement_name=measurement,
-                data_frame_tag_columns=tag_columns or [],
-                data_frame_timestamp_column=time_col
-            )
-            self.write_api.flush()
-        except Exception as e:
-            raise ValueError(f"Influx write failed: {str(e)}")
-
-    def query_to_dataframe(self, flux_query: str) -> pd.DataFrame:
-        """Execute Flux query and return DataFrame."""
-        return self.query_api.query_data_frame(flux_query)
-
-    def write_unstructured(self, measurement: str, data: dict, metadata: dict):
-        """Store flexible JSON data."""
-        try:
-            processed_data = self.preprocess_data(data)
-            self.write_api.write(
-                bucket=self.bucket,
-                record=[{
-                    "measurement": measurement,
-                    "fields": processed_data,
-                    "tags": metadata
-                }]
-            )
-            self.write_api.flush()
-        except Exception as e:
-            raise ValueError(f"Influx write failed: {str(e)}")
-        
-    def write_batch(self, records: List[Dict[str, Any]]) -> None:
-        """
-        Writes multiple records to InfluxDB in a single batch.
-        """
-        try:
-            for record in records:
-                df = pd.DataFrame(record["fields"])
+             # Write in batches if dataframe is large
+            if len(df) > batch_size:
+                for i in range(0, len(df), batch_size):
+                    batch = df.iloc[i:i+batch_size]
+                    self.write_api.write(
+                        bucket=self.bucket,
+                        record=batch,
+                        data_frame_measurement_name=measurement,
+                        data_frame_tag_columns=tag_columns or [],
+                        data_frame_timestamp_column=time_col
+                    )
+            else:
                 self.write_api.write(
                     bucket=self.bucket,
                     record=df,
-                    data_frame_measurement_name=record["measurement"],
-                    data_frame_tag_columns=list(record["tags"].keys()),
-                    data_frame_timestamp_column=record["time_col"]
+                    data_frame_measurement_name=measurement,
+                    data_frame_tag_columns=tag_columns or [],
+                    data_frame_timestamp_column=time_col
                 )
-            self.write_api.flush()
         except Exception as e:
-            raise ValueError(f"Batch write failed: {str(e)}")
+            raise ValueError(f"Influx write failed: {str(e)}")
+
+    def write_unstructured(self, measurement: str, data: dict, metadata: dict, timestamp=None):
+        """Alternative version that updates fields without delete"""
+        try:
+            processed_data = self.preprocess_data(data)
+            record_time = timestamp or pd.Timestamp.now()
+            
+            # Create point with all fields
+            point = {
+                "measurement": measurement,
+                "fields": processed_data,
+                "tags": metadata,
+                "time": record_time
+            }
+            
+            # Use unindexed write for better update performance
+            self.write_api.write(
+                bucket=self.bucket,
+                record=[point],
+                write_precision='ns',
+            )
+            
+        except Exception as e:
+            raise ValueError(f"Influx write failed: {str(e)}")
     
     def close(self) -> None:
         """
