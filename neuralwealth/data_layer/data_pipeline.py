@@ -6,6 +6,7 @@ from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentColle
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
 from neuralwealth.data_layer.collectors.financials_data import FinancialsCollector
 from neuralwealth.data_layer.collectors.ticker_collector import TickerCollector
+from neuralwealth.data_layer.processors.feature_engineer import FeatureEngineer
 
 # Storage module
 from neuralwealth.data_layer.storage.influxdb_storage import InfluxDBStorage
@@ -35,6 +36,7 @@ class DataPipeline:
         self.fred_collector = FREDCollector(config["fred_api_key"])
         self.financials_collector = FinancialsCollector()
         self.ticker_collector = TickerCollector()
+        self.feature_engineer = FeatureEngineer()
         
         # Initialize InfluxDB storage
         self.db_client = InfluxDBStorage(
@@ -75,6 +77,7 @@ class DataPipeline:
 
         # Collect and store market data
         market_df = self.market_collector.get_market_data(yf_symbol, period="max")
+        market_df = self.feature_engineer.add_ta_features(market_df)
         market_df.reset_index(inplace=True)
         market_df.rename(columns={'Date': 'time'}, inplace=True)
         market_df['ticker'] = ticker['ticker']
