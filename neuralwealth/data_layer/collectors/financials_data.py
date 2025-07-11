@@ -63,7 +63,7 @@ class FinancialsCollector:
         """
         Scrapes financial data for a given stock symbol from yFinance with delays between requests,
         transposing each DataFrame into a time series format with dates as the first unnamed column
-        and field names as other columns.
+        and field names as other columns in lowercase with underscores.
         
         Args:
             symbol (str): Stock ticker symbol (e.g., 'NVDA')
@@ -71,10 +71,27 @@ class FinancialsCollector:
         Returns:
             Dict[str, pd.DataFrame]: Dictionary containing financial statements as transposed DataFrames
         """
+        def to_snake_case(name: str) -> str:
+            """
+            Converts a string to snake_case (lowercase with underscores), preserving acronyms.
+            
+            Args:
+                name (str): Input string (e.g., 'Tax Effect Of Unusual Items', 'Normalized EBITDA')
+                
+            Returns:
+                str: Snake case string (e.g., 'tax_effect_of_unusual_items', 'normalized_ebitda')
+            """
+            name = re.sub(r'(?<!^)(?=[A-Z][a-z])', '_', name)
+            name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', name)
+            name = name.lower()
+            name = re.sub(r'\s+', '_', name)
+            name = re.sub(r'_+', '_', name)
+            return name.strip('_')
+
         def transpose_to_timeseries(df: pd.DataFrame) -> pd.DataFrame:
             """
             Transposes a DataFrame to time series format with dates as the first unnamed column
-            and original row indices as column headers.
+            and original row indices as column headers in lowercase with underscores.
             
             Args:
                 df (pd.DataFrame): Input DataFrame with dates as columns and fields as rows
@@ -84,6 +101,8 @@ class FinancialsCollector:
             """
             if df.empty:
                 return df
+            # Rename index (row headers) to snake_case
+            df.index = [to_snake_case(str(idx)) for idx in df.index]
             df_transposed = df.transpose()
             df_transposed = df_transposed.reset_index()
             df_transposed.columns = [''] + list(df_transposed.columns[1:])
@@ -156,11 +175,11 @@ class FinancialsCollector:
             return pd.DataFrame()
         except Exception as e:
             raise ValueError(f"macrotrends.net failed for {symbol} - {company_name} - {page_type} - {frequency}: {str(e)}")
-    
+
     def _process_macrotrends_raw_data(self, raw_json: List[Dict]) -> pd.DataFrame:
         """
         Processes financial data JSON into a pandas DataFrame in time series format by:
-        1. Extracting plain text from HTML fields to use as field names
+        1. Extracting the ID from the HTML field_name's href attribute to use as field names
         2. Converting data into time series format with date values as the first unnamed column
         3. Converting numeric strings to appropriate numeric types
         4. Removing empty fields
@@ -169,7 +188,7 @@ class FinancialsCollector:
             raw_json (List[Dict]): List of dictionaries containing the raw financial data
             
         Returns:
-            pd.DataFrame: DataFrame with date values as the first unnamed column and columns for each field name
+            pd.DataFrame: DataFrame with date values as the first unnamed column and columns for each field ID
         """
         try:
             data = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
@@ -181,8 +200,12 @@ class FinancialsCollector:
         for item in data:
             field_name_html = item.get("field_name", "")
             soup = BeautifulSoup(field_name_html, 'html.parser')
-            field_name = soup.get_text().strip()
-            field_data[field_name] = {}
+            a_tag = soup.find('a')
+            if a_tag and 'href' in a_tag.attrs:
+                field_id = a_tag['href'].split('/')[-1].replace('-', '_')
+            else:
+                field_id = soup.get_text().strip().lower().replace(' ', '-')
+            field_data[field_id] = {}
             for key, value in item.items():
                 if key in ["field_name", "popup_icon"] or value == "":
                     continue
@@ -192,15 +215,15 @@ class FinancialsCollector:
                         cleaned_value = int(cleaned_value)
                 except (ValueError, TypeError):
                     cleaned_value = value
-                field_data[field_name][key] = cleaned_value
+                field_data[field_id][key] = cleaned_value
                 dates.add(key)
         
         time_series_data = []
         for date in sorted(dates):
             record = {None: date}
-            for field_name in field_data:
-                if date in field_data[field_name]:
-                    record[field_name] = field_data[field_name][date]
+            for field_id in field_data:
+                if date in field_data[field_id]:
+                    record[field_id] = field_data[field_id][date]
             time_series_data.append(record)
         
         df = pd.DataFrame(time_series_data)

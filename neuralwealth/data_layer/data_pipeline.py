@@ -6,6 +6,7 @@ from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentColle
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
 from neuralwealth.data_layer.collectors.financials_data import FinancialsCollector
 from neuralwealth.data_layer.collectors.ticker_collector import TickerCollector
+from neuralwealth.data_layer.processors.feature_engineer import FeatureEngineer
 
 # Storage module
 from neuralwealth.data_layer.storage.influxdb_storage import InfluxDBStorage
@@ -35,6 +36,7 @@ class DataPipeline:
         self.fred_collector = FREDCollector(config["fred_api_key"])
         self.financials_collector = FinancialsCollector()
         self.ticker_collector = TickerCollector()
+        self.feature_engineer = FeatureEngineer()
         
         # Initialize InfluxDB storage
         self.db_client = InfluxDBStorage(
@@ -75,6 +77,7 @@ class DataPipeline:
 
         # Collect and store market data
         market_df = self.market_collector.get_market_data(yf_symbol, period="max")
+        market_df = self.feature_engineer.add_ta_features(market_df)
         market_df.reset_index(inplace=True)
         market_df.rename(columns={'Date': 'time'}, inplace=True)
         market_df['ticker'] = ticker['ticker']
@@ -95,18 +98,17 @@ class DataPipeline:
                     time_col = 'time' if '' in df.columns else None
                     if time_col:
                         df = df.rename(columns={'': 'time'})
+                    # Preprocess DataFrame to ensure consistent numeric types
+                    df = self.db_client.preprocess_dataframe(df, time_col)
                     df['ticker'] = ticker['ticker']
                     df['asset_class'] = ticker['asset_class']
                     df['market'] = ticker['market']
-                    # Preprocess DataFrame to ensure consistent numeric types
-                    df = self.db_client.preprocess_dataframe(df, time_col)
                     self.db_client.write_dataframe(
                         df=df,
                         measurement=statement_type,
                         tag_columns=['ticker', 'asset_class', 'market'],
                         time_col=time_col
                     )
-
         # Collect and store news sentiment
         news_df = self.news_collector.scrape_news_sentiment(yf_symbol)
         news_df = news_df.rename(columns={'timestamp': 'time'})
@@ -134,24 +136,18 @@ class DataPipeline:
         try:
             # Process macro data in batches
             macro_data = self.fred_collector.fetch_all()
-            records = []
             for series_name, df in macro_data.items():
                 if not df.empty:
-                    time_col = 'time' if '' in df.columns else None
-                    if time_col:
-                        df = df.rename(columns={'': 'time'})
                     df.columns = [series_name]
-                    records.append({
-                        "measurement": "macro_data",
-                        "tags": {"indicator": series_name},
-                        "fields": df.to_dict(orient="records"),
-                        "time_col": time_col
-                    })
-
-            # Write all macro data in a single batch
-            if records:
-                self.db_client.write_batch(records)
-
+                    df.index.name = "time"
+                    df.reset_index(inplace=True)
+                    self.db_client.write_dataframe(
+                        df,
+                        "macro_data",
+                        [],
+                        "time"
+                    )
+        
             # Process ticker data
             for ticker in tickers:
                 self._process_ticker_data(ticker)

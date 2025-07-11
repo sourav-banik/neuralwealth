@@ -132,9 +132,9 @@ def test_process_macrotrends_raw_data():
     assert isinstance(df, pd.DataFrame)
     assert df.columns[0] == ""  # Unnamed date column
     assert list(df[""]) == ["2023-01-31", "2024-01-31"]  # Sorted dates
-    assert list(df.columns[1:]) == ["Revenue", "Net Income"]
-    assert df.loc[df[""] == "2024-01-31", "Revenue"].iloc[0] == 60922
-    assert df.loc[df[""] == "2024-01-31", "Net Income"].iloc[0] == 29760
+    assert list(df.columns[1:]) == ["revenue", "net_income"]
+    assert df.loc[df[""] == "2024-01-31", "revenue"].iloc[0] == 60922
+    assert df.loc[df[""] == "2024-01-31", "net_income"].iloc[0] == 29760
 
 def test_process_macrotrends_raw_data_invalid_json():
     """
