@@ -1,6 +1,3 @@
-import sys
-sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
-
 from neuralwealth.data_layer.collectors.market_data import MarketDataCollector
 
 def main():

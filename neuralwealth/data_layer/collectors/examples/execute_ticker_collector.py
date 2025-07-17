@@ -1,6 +1,3 @@
-import sys
-sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
-
 from neuralwealth.data_layer.collectors.ticker_collector import TickerCollector
 
 def main():

@@ -1,6 +1,3 @@
-import sys
-sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
-
 from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentCollector
 from neuralwealth.env import data_pipeline_env
 
