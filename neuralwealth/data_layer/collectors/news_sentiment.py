@@ -65,7 +65,7 @@ class NewsSentimentCollector:
         Returns:
             DataFrame with unnamed timestamp column, id, text, and sentiment score
         """
-        rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+        rss_url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={query}&region=US&lang=en-US"
         feed = feedparser.parse(rss_url)
         results = []
         for entry in feed.entries[:limit]:

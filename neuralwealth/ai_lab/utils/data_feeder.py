@@ -76,6 +76,7 @@ class DataFeeder:
     For each group:
     - Each group is independent of one another.
     - Provide an **explanation** describing how the queries contribute to trading/investment hypotheses (e.g., linking 'roe' to 'Close' for alpha generation).
+    - Assign **associated_tickers** list for which the query group is created as provided in the data below.
     - Assign a **heading** to each query pattern to clarify its role in the analysis with enough explanation (e.g., 'Price Momentum Signals for 2015-2017 for Tech Stocks', 'Fundamental Strength Indicators for Forex Currencies').
     - Prefer **longer aggregation windows** (e.g., '1w', '1mo', '3mo') for weekly, monthly, or quarterly trends to ensure robust signals.
     - There is no limit on how many queries in a group, use as many as you think necessary for analysis.
@@ -83,7 +84,8 @@ class DataFeeder:
     Parameters for each query:
     - **measurement**: Choose from measurements (e.g., basic_info, market_info, news_sentiment).
     - **fields**: Select fields relevant to trading/investment (e.g., 'Close', 'RSI' for market_info; 'roe', 'net_profit_margin' for financial_ratios).
-    - **tickers**: List of assets (e.g., 'AAPL', 'MSFT', 'NVDA', 'IRTC', 'VIAV', 'ACLS', 'EURUSD', 'GBPUSD', 'DJI').
+    - **tickers**: List of tickers with asset class and market:
+    {tickers}
     - **start/stop**: Timeframe for each period (e.g., '2015-01-01', '2015-12-31').
     - **every**: Aggregation window (e.g., '1w', '1mo', '3mo').
     - **fn**: Aggregation function (e.g., 'mean', 'last', 'sum').
@@ -96,7 +98,7 @@ class DataFeeder:
     - For **macroeconomic analysis**: Combine 'macro_data' (e.g., 'CPI Inflation', 'Real GDP') with 'market_info' (e.g., 'Close') to assess macro impacts on asset prices. Use monthly ('1mo') or quarterly ('3mo') aggregation.
     - Experiment with fields like 'beta' (basic_info) or 'MACD' (market_info) for risk or trend analysis.
     - Use 'mean' for continuous data (e.g., 'Close'), 'last' for point-in-time data (e.g., 'total_assets'), 'sum' for cumulative data (e.g., 'Volume').
-    - Keep sample_size between 1000-5000 for large datasets (e.g., 'market_info' from 1927).
+    - Keep sample_size between 1000-5000 for large datasets (e.g., 'market_info' from 1990).
     - Ensure timeframes align with measurement availability (e.g., 2009-01-31 to 2025-01-31 for 'balance_sheet').
 
     Return JSON:
@@ -105,6 +107,7 @@ class DataFeeder:
         {{
             "group_name": "string",
             "explanation": "string explaining how queries support trading/investment hypotheses",
+            "associated_tickers": [{{"ticker": "string", "asset_class": "string", "market": "string"}}],
             "queries": [
                 {{
                     "heading": "string describing data purpose",
@@ -132,6 +135,7 @@ class DataFeeder:
         {{
             "group_name": "Momentum and Fundamentals",
             "explanation": "Combines market momentum indicators with fundamental metrics over quarterly periods to identify stocks with strong price trends supported by high profitability, potentially leading to buy signals.",
+            "associated_tickers": [{{"ticker": "MSFT", "asset_class": "stock", "market": "NASDAQ"}}],
             "queries": [
                 {{
                     "heading": "Price Momentum Signals",
@@ -165,31 +169,51 @@ class DataFeeder:
     \\```
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, url: str, token: str, org: str, bucket: str) -> None:
         """Initialize with InfluxDB client and schema.
 
         Args:
-            config: Dictionary containing InfluxDB connection details (url, token, org, bucket).
+            url: influxdb url, 
+            token: influxdb token, 
+            org: influxdb organization name, 
+            bucket: influxdb bucket name
         """
         self.db = InfluxDBClient(
-            url=config["influxdb_url"],
-            token=config["influxdb_token"],
-            org=config["influxdb_org"]
+            url=url,
+            token=token,
+            org=org
         )
-        self.data_bucket = config["influxdb_bucket"]
+        self.data_bucket = bucket
         data_schema = DataSchemaGenerator(
-            url=config["influxdb_url"],
-            token=config["influxdb_token"],
-            org=config["influxdb_org"]
+            url=url,
+            token=token,
+            org=org
         )
         try:
             dir = os.path.dirname(__file__)
             with open(os.path.join(dir, 'influxdb_schema.json'), 'r', encoding='utf-8') as file:
                 self.schema = json.load(file)
         except FileNotFoundError as e:
-            self.schema = data_schema.generate_schema(config["influxdb_bucket"])
+            self.schema = data_schema.generate_schema(bucket)
 
-    def get_llm_prompt(self, timeframe: str, analysis_focus: str) -> str:
+    def _format_tickers(self, tickers: List[Dict[str, Any]]) -> str:
+        """Formats ticker list for LLM input.
+
+        Args:
+            tickers: List of dict containing tickers with asset_class and market parameter (e.g., [{"ticker": "MSFT", "asset_class": "stock", "market": "NASDAQ"},
+                    {"ticker": "NVDA", "asset_class": "stock", "market": "NASDAQ"}]
+
+        Returns:
+            Well Formatted  ticker list str for LLM input. 
+        """
+        output = []
+        for item in tickers:
+            output.append(
+                f"        - (ticker: {item['ticker']}, asset_class: {item['asset_class']}, market: {item['market']})"
+            )
+        return "\n".join(output)
+
+    def get_llm_prompt(self, tickers: List[Dict[str, Any]], timeframe: str, analysis_focus: str) -> str:
         """Generate prompt for LLM to select query parameters.
 
         Args:
@@ -200,6 +224,7 @@ class DataFeeder:
             Formatted prompt string for LLM.
         """
         return self.LLM_PROMPT_GUIDE.format(
+            tickers = self._format_tickers(tickers),
             schema=json.dumps(self.schema, indent=2),
             patterns_json=json.dumps(list(self.QUERY_PATTERNS.keys()), indent=2),
             analysis_focus=analysis_focus,
@@ -259,6 +284,7 @@ class DataFeeder:
             for group in query_groups:
                 group_name = group.get("group_name", "Unnamed Group")
                 explanation = group.get("explanation", "")
+                associated_tickers = group.get("associated_tickers", [])
                 queries = []
 
                 for query in group.get("queries", []):
@@ -282,6 +308,7 @@ class DataFeeder:
                 # Create group result structure
                 group_result = {
                     "group_name": group_name,
+                    "associated_tickers": associated_tickers,
                     "explanation": explanation,
                     "queries": queries
                 }
@@ -289,6 +316,7 @@ class DataFeeder:
             return result_groups
 
         except Exception as e:
+            print(e)
             return []
 
     def summarize_data(self, df: pd.DataFrame) -> str:

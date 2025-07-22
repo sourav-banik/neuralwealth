@@ -8,35 +8,51 @@ from neuralwealth.ai_lab.utils.data_feeder import DataFeeder
 class LLMGenerator:
     """Generates investment hypotheses from DataFeeder results with context caching."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, 
+                 openai__base_url: str, openai_api_key: str, openai_model: str ,
+                 db_url: str, db_token: str, db_org: str, db_bucket: str
+                ) -> None:
         """Initialize with LLM API and DataFeeder.
 
         Args:
-            config: Dictionary with OpenAI and InfluxDB connection details.
+            openai__base_url: OpenAI sdk base url,
+            openai_api_key: OpenAI sdk API key,
+            openai_model: OpenAI sdk LLM model to generate hypothesis with,
+            db_url: InfluxDB server url,
+            db_token: InfluxDB authentication token,
+            db_org: InfluxDB organization, 
+            db_bucket: InfluxDB bucket
         """
         self.client = OpenAI(
-            base_url=config["openai_sdk_base_url"],
-            api_key=config["open_ai_sdk_api_key"],
+            base_url=openai__base_url,
+            api_key=openai_api_key,
         )
-        self.datafeed = DataFeeder(config)
-        self.llm_model = config["llm_model"]
+        self.datafeed = DataFeeder(db_url, db_token, db_org, db_bucket)
+        self.llm_model = openai_model
         self.conversation_cache: Dict[str, List[Dict]] = {}
 
-    def generate_hypotheses(self, params: Dict[str, Any]) -> List[Dict]:
+    def generate_hypotheses(self, 
+                            tickers: List[Dict] = [], 
+                            timeframe: str = "2015-01-01 to 2019-12-31", 
+                            analysis_focus: str = "fundamental_technical", 
+                            constraints: str = """The hypotheses should be ticker specific, not group focused like sector, industry etc. 
+                            Don't use any other indicator or parameter that are not mentioned in the data schema. The hypotheses should be
+                            testable using python backtrader framework."""
+                            ) -> List[Dict]:
         """Generate investment hypotheses with context caching.
 
         Args:
-            params: Dictionary with 'timeframe', 'analysis_focus', and 'constraints'.
+            tickers: List of tickers used in the analysis
+            timeframe:  Timeframe of analysis
+            analysis_focus: Focus of analysis
+            constraints: Constraints of analysis
 
         Returns:
             List of dictionaries containing scored hypotheses.
         """
-        timeframe = params.get("timeframe", "2015-01-01 to 2019-12-31")
-        analysis_focus = params.get("analysis_focus", "fundamental_technical")
-        constraints = params.get("constraints", "Max 5 hypotheses, prioritize statistical significance")
         
         # Step 1: Generate analysis plan with DataFeeder
-        plan_prompt = self.datafeed.get_llm_prompt(timeframe, analysis_focus)
+        plan_prompt = self.datafeed.get_llm_prompt(tickers, timeframe, analysis_focus)
         plan_result = self._llm_call(plan_prompt, group_name="initial_plan")
         query_results = self.datafeed.process_llm_query_request(plan_result)
         
@@ -44,7 +60,10 @@ class LLMGenerator:
         hypotheses = []
         for group in query_results:
             group_name = group["group_name"]
-            context = f"{group_name}: {group['explanation']}"
+            context = f"""{group_name}: {group['explanation']}
+            Tickers Analyzed:
+            {self.datafeed._format_tickers(group['associated_tickers'])}   
+            """
             # Initialize conversation cache for this group
             self.conversation_cache[group_name] = [
                 {"role": "user", "content": plan_prompt},
@@ -87,7 +106,7 @@ class LLMGenerator:
             [
                 {{
                     "pattern": "DESCRIPTION",
-                    "assets": ["TICKER1", "TICKER2"],
+                    "assets": [{{"ticker": "ticker", "asset_class": "asset_class", "market": "market"}}],
                     "strength": "HIGH|MEDIUM|LOW"
                 }}
             ]
@@ -101,7 +120,7 @@ class LLMGenerator:
             [
                 {{
                     "pattern": "DESCRIPTION",
-                    "assets": ["TICKER1", "TICKER2"],
+                    "assets": [{{"ticker": "ticker", "asset_class": "asset_class", "market": "market"}}],
                     "strength": "HIGH|MEDIUM"
                 }}
             ]
@@ -110,17 +129,31 @@ class LLMGenerator:
             Based on {context} and constraints: {constraints}
             Convert these patterns into investment hypotheses:
             {patterns}
+            The backtesting data schema is following -
+            {data_schema}
             Return JSON:
             [
                 {{
                     "hypothesis": "ACTIONABLE STATEMENT",
-                    "assets": ["TICKER1", "TICKER2"],
+                    "assets": [{{"ticker": "ticker", "asset_class": "asset_class", "market": "market"}}],
                     "trigger": "CONDITION",
                     "timeframe": "PERIOD",
                     "confidence": 0.0-1.0,
-                    "risks": "FACTORS"
+                    "risks": "FACTORS",
+                    "strategy": {{
+                        "indicators": [{{"name": "INDICATOR_NAME", "params": {{...}}}}],
+                        "buy_conditions": ["CONDITION"],
+                        "sell_conditions": ["CONDITION"],
+                        "holding_period": DAYS_NUMBER,
+                        "data_feed": {{
+                            "MEASUREMENT": ["FIELD1", "FIELD2"],
+                        }}
+                    }}
                 }}
             ]
+            Ensure the strategy includes python Backtrader-compatible strategy and the data are from data schema I've provided. 
+            The data_feed must specify measurements (e.g., market_info, financial_ratios, macro_data) and fields (e.g., Close, 
+            Volume, roe, CPI Inflation) from the InfluxDB schema, matching the strategy's requirements.
             """
         }
         
@@ -136,6 +169,7 @@ class LLMGenerator:
         
         prompt = phase_prompts[phase].format(
             context=context,
+            data_schema = self.datafeed.schema,
             constraints=constraints,
             data_samples=data_samples,
             patterns=data_samples
@@ -203,17 +237,18 @@ class LLMGenerator:
                         "strength": h["strength"]
                     } for h in hypotheses if "pattern" in h and "assets" in h and "strength" in h
                 ]
-            else:  # final
+            else:
                 return [
                     {
                         "thesis": h["hypothesis"],
                         "assets": h["assets"],
                         "trigger": h["trigger"],
                         "timeframe": h["timeframe"],
+                        "strategy": h["strategy"],
                         "confidence": float(h["confidence"]),
                         "risks": h["risks"]
                     } for h in hypotheses
-                    if all(k in h for k in ["hypothesis", "assets", "trigger", "timeframe", "confidence", "risks"])
+                    if all(k in h for k in ["hypothesis", "assets", "trigger", "timeframe", "confidence", "risks", "strategy"])
                 ]
         except Exception as e:
             return []
