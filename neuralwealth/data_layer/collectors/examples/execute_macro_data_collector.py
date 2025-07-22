@@ -1,6 +1,3 @@
-import sys
-sys.path.append(r"C:\Users\MyPC\myprojects\neuralwealth")
-
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
 from neuralwealth.env import data_pipeline_env
 

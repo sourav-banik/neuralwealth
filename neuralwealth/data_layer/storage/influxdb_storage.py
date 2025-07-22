@@ -6,6 +6,14 @@ import json
 
 class InfluxDBStorage:
     def __init__(self, url: str, token: str, org: str, bucket: str):
+        """Initialize with InfluxDB client.
+
+        Args:
+            url: influxdb url, 
+            token: influxdb token, 
+            org: influxdb organization name, 
+            bucket: influxdb bucket name
+        """
         self.client = InfluxDBClient(url=url, token=token, org=org, timeout=900000)
         self.bucket = bucket
         self.write_api = self.client.write_api(
@@ -97,6 +105,9 @@ class InfluxDBStorage:
             processed_data = self.preprocess_data(data)
             record_time = timestamp or pd.Timestamp.now()
             
+            metadata = metadata.copy()
+            metadata['_unstructured'] = 'true'
+
             # Create point with all fields
             point = {
                 "measurement": measurement,
