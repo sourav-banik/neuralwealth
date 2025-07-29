@@ -1,62 +1,74 @@
+import unittest
 import pandas as pd
 import numpy as np
-from neuralwealth.data_layer.processors.cleaner import DataCleaner
+from neuralwealth.data_layer.processors.cleaner import MarketDataCleaner
 
-# Sample DataFrame for testing
-def create_sample_df(rows=20):
-    return pd.DataFrame({
-        'Open': [100 + i for i in range(rows)],
-        'High': [102 + i for i in range(rows)],
-        'Low': [98 + i for i in range(rows)],
-        'Close': [101 + i for i in range(rows)],
-        'Volume': [1000 + i * 100 for i in range(rows)]
+def setUp():
+    dates = pd.date_range(start='2025-06-30', periods=26, freq='D')
+    df = pd.DataFrame({
+        'time': dates,
+        'open': 158.0 + np.random.normal(0, 2, 26),
+        'high': 159.0 + np.random.normal(0, 2, 26),
+        'low': 156.0 + np.random.normal(0, 2, 26),
+        'close': 157.0 + np.random.normal(0, 2, 26),
+        'volume': 200000000 + np.random.normal(0, 10000000, 26),
+        'dividends': [0.0] * 26,
+        'stock_splits': [0.0] * 26
     })
+    df.loc[5, 'open'] = np.nan
+    df.loc[6, 'volume'] = -1000
+    df.loc[7, 'high'] = 200.0
+    return df
 
-def test_normalize_prices_success():
-    """Test normalize_prices cleans and normalizes OHLCV data."""
-    df = create_sample_df()
-    # Add some NaNs and outliers
-    df.loc[5, 'Close'] = np.nan
-    df.loc[10, 'High'] = 1000  # Outlier
-    df.loc[15, 'Volume'] = -100  # Negative volume
-    result = DataCleaner.normalize_prices(df)
-    assert isinstance(result, pd.DataFrame), "Output is not a DataFrame"
-    expected_columns = [
-        'Open', 'High', 'Low', 'Close', 'Volume',
-        'Open_norm', 'High_norm', 'Low_norm', 'Close_norm'
-    ]
-    assert all(col in result.columns for col in expected_columns), "Missing expected columns"
-    assert len(result) == len(df), "Output row count does not match input"
-    assert not result.isna().any().any(), "NaN values remain in output"
-    assert result['Volume'].min() > 0, "Negative or zero volumes remain"
-    # Calculate expected cap for High at index 10
-    rolling_mean = df['High'].rolling(window=10, min_periods=1).mean()
-    rolling_std = df['High'].rolling(window=10, min_periods=1).std().fillna(1.0)
-    upper_bound = rolling_mean + 3 * rolling_std
-    assert result.loc[10, 'High'] <= upper_bound.loc[10], f"Outlier in High not capped: {result.loc[10, 'High']} > {upper_bound.loc[10]}"
-    assert result['Open_norm'].between(0, 1).all(), "Normalized Open not in [0, 1]"
+def test_missing_columns():
+    df = setUp()
+    df_invalid = df.drop(columns=['open'])
+    with unittest.TestCase().assertRaises(ValueError):
+        MarketDataCleaner.clean_data(df_invalid)
 
-def test_normalize_prices_missing_columns():
-    """Test normalize_prices raises ValueError for missing columns."""
-    df = pd.DataFrame({'Open': [100], 'High': [102], 'Low': [98]})  # Missing Close
-    try:
-        DataCleaner.normalize_prices(df)
-        assert False, "Expected ValueError"
-    except ValueError as e:
-        assert "DataFrame must contain columns" in str(e), "Unexpected error message"
+def test_insufficient_rows():
+    df = setUp()
+    df_short = df.iloc[:5]
+    with unittest.TestCase().assertRaises(ValueError):
+        MarketDataCleaner.clean_data(df_short)
 
-def test_normalize_prices_insufficient_rows():
-    """Test normalize_prices raises ValueError for insufficient rows."""
-    df = create_sample_df(rows=5)  # Less than 10 rows
-    try:
-        DataCleaner.normalize_prices(df)
-        assert False, "Expected ValueError"
-    except ValueError as e:
-        assert "at least 10 rows" in str(e), "Unexpected error message"
+def test_missing_time_column():
+    df = setUp()
+    df_no_time = df.drop(columns=['time'])
+    df_no_time.index = range(len(df_no_time))
+    with unittest.TestCase().assertRaises(ValueError):
+        MarketDataCleaner.clean_data(df_no_time)
 
-def test_normalize_prices_constant_values():
-    """Test normalize_prices handles constant OHLC values."""
-    df = create_sample_df()
-    df['Close'] = 100  # Constant Close
-    result = DataCleaner.normalize_prices(df)
-    assert (result['Close_norm'] == 0).all(), "Normalized constant Close not zero"
+def test_price_consistency():
+    df = setUp()
+    cleaned_df = MarketDataCleaner.clean_data(df)
+    assert (cleaned_df['high'] >= cleaned_df['close']).all()
+    assert (cleaned_df['close'] >= cleaned_df['low']).all()
+    assert (cleaned_df['high'] >= cleaned_df['open']).all()
+    assert (cleaned_df['open'] >= cleaned_df['low']).all()
+
+def test_missing_values_handled():
+    df = setUp()
+    cleaned_df = MarketDataCleaner.clean_data(df)
+    assert not cleaned_df[['open', 'high', 'low', 'close', 'volume']].isna().any().any()
+
+def test_outlier_handling():
+    df = setUp()
+    cleaned_df = MarketDataCleaner.clean_data(df)
+    upper_bound = df['high'].quantile(0.99)
+    assert (cleaned_df['high'] <= upper_bound).all()
+
+def test_volume_cleaning():
+    df = setUp()
+    cleaned_df = MarketDataCleaner.clean_data(df)
+    assert (cleaned_df['volume'] >= 0).all()
+    volume_upper = df['volume'][df['volume'] >= 0].quantile(0.99)
+    assert (cleaned_df['volume'] <= volume_upper).all()
+
+def test_normalization():
+    df = setUp()
+    cleaned_df = MarketDataCleaner.clean_data(df, normalize=True, z_score=True)
+    for col in ['open', 'high', 'low', 'close']:
+        assert (cleaned_df[f'{col}_norm'] >= 0).all()
+        assert (cleaned_df[f'{col}_norm'] <= 1).all()
+        assert cleaned_df[f'{col}_z_score'].notna().all()
