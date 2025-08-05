@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Dict, Any
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 import pandas as pd
@@ -14,7 +14,12 @@ class InfluxDBStorage:
             org: influxdb organization name, 
             bucket: influxdb bucket name
         """
-        self.client = InfluxDBClient(url=url, token=token, org=org, timeout=900000)
+        self.client = InfluxDBClient(
+            url=url, 
+            token=token, 
+            org=org, 
+            timeout=900000
+        )
         self.bucket = bucket
         self.write_api = self.client.write_api(
             write_options=SYNCHRONOUS
@@ -41,7 +46,11 @@ class InfluxDBStorage:
                 processed_data[key] = str(value)
         return processed_data
     
-    def preprocess_dataframe(self, df: pd.DataFrame, time_col: str = None) -> pd.DataFrame:
+    def preprocess_dataframe(
+        self, 
+        df: pd.DataFrame, 
+        time_col: str = None
+    ) -> pd.DataFrame:
         """
         Preprocesses a DataFrame to ensure consistent numeric types for InfluxDB.
 
@@ -61,12 +70,14 @@ class InfluxDBStorage:
                     df[col] = df[col].astype(str)
         return df
 
-    def write_dataframe(self, 
-                       df: pd.DataFrame, 
-                       measurement: str, 
-                       tag_columns: list = None,
-                       time_col: str = 'time',
-                       batch_size: int = 100):
+    def write_dataframe(
+        self, 
+        df: pd.DataFrame, 
+        measurement: str, 
+        tag_columns: list = None,
+        time_col: str = 'time',
+        batch_size: int = 100
+    ):
         """
         Write DataFrame to InfluxDB.
         
@@ -99,7 +110,13 @@ class InfluxDBStorage:
         except Exception as e:
             raise ValueError(f"Influx write failed: {str(e)}")
 
-    def write_unstructured(self, measurement: str, data: dict, metadata: dict, timestamp=None):
+    def write_unstructured(
+        self, 
+        measurement: str, 
+        data: dict, 
+        metadata: dict, 
+        timestamp=None
+    ):
         """Alternative version that updates fields without delete"""
         try:
             processed_data = self.preprocess_data(data)

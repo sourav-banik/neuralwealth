@@ -151,7 +151,12 @@ class FinancialsCollector:
             time.sleep(5)
         return result
 
-    def _scrape_macrotrends_page(self, symbol: str, company_name: str, page_type: str, frequency: str) -> pd.DataFrame:
+    def _scrape_macrotrends_page(self, 
+        symbol: str, 
+        company_name: str, 
+        page_type: str, 
+        frequency: str
+    ) -> pd.DataFrame:
         """
         Scrapes a financial page (e.g., income statement, quarterly) for a ticker.
         

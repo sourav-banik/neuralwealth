@@ -6,7 +6,9 @@ import re
 
 class settings:
     yahoo_finance_base_url = "https://finance.yahoo.com"
-    yahoo_finance_header = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" }
+    yahoo_finance_header = { 
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" 
+    }
 
 class TickerCollector:
     """

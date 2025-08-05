@@ -1,7 +1,7 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from neuralwealth.data_layer.data_pipeline import DataPipeline
 import pandas as pd
-import pytest
+import numpy as np
 
 @patch('neuralwealth.data_layer.collectors.market_data.MarketDataCollector.get_basic_info')
 @patch('neuralwealth.data_layer.collectors.market_data.MarketDataCollector.get_market_data')
@@ -43,9 +43,16 @@ def test_pipeline_e2e(
 
     # Mock collector responses
     mock_get_basic_info.return_value = {"symbol": "AAPL", "name": "Apple Inc."}
+    dates = pd.date_range(start='2025-06-30', periods=26, freq='D')
     mock_get_market_data.return_value = pd.DataFrame({
-        'Date': [pd.to_datetime('2025-06-29')],
-        'Close': [150.0]
+        'time': dates,
+        'open': 158.0 + np.random.normal(0, 2, 26),
+        'high': 159.0 + np.random.normal(0, 2, 26),
+        'low': 156.0 + np.random.normal(0, 2, 26),
+        'close': 157.0 + np.random.normal(0, 2, 26),
+        'volume': 200000000 + np.random.normal(0, 10000000, 26),
+        'dividends': [0.0] * 26,
+        'stock_splits': [0.0] * 26
     })
     mock_scrape_news_sentiment.return_value = pd.DataFrame({
         'timestamp': [pd.to_datetime('2025-06-29')],
@@ -58,8 +65,8 @@ def test_pipeline_e2e(
         })
     }
     mock_fetch_all.return_value = {
-        "Nominal GDP": pd.DataFrame({
-            'GDP': [20000.0]
+        "nominal_gdp": pd.DataFrame({
+            'nominal_gdp': [20000.0]
         }, index=[pd.to_datetime('2025-03-31')])
     }
 
