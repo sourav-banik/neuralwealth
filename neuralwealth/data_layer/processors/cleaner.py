@@ -40,7 +40,12 @@ class MarketDataCleaner:
         return df
 
     @staticmethod
-    def _handle_outliers(df: pd.DataFrame, columns: list, lower_percentile: float = 0.01, upper_percentile: float = 0.99) -> pd.DataFrame:
+    def _handle_outliers(
+        df: pd.DataFrame, 
+        columns: list, 
+        lower_percentile: float = 0.01, 
+        upper_percentile: float = 0.99
+    ) -> pd.DataFrame:
         """
         Caps outliers in specified columns using percentile-based bounds.
 
@@ -83,7 +88,11 @@ class MarketDataCleaner:
         return df
 
     @staticmethod
-    def _normalize_z_score(df: pd.DataFrame, columns: list, window: int = 100) -> pd.DataFrame:
+    def _normalize_z_score(
+        df: pd.DataFrame, 
+        columns: list, 
+        window: int = 100
+    ) -> pd.DataFrame:
         """
         Normalizes specified columns using z-score (mean=0, std=1) over a rolling window.
 
@@ -103,7 +112,11 @@ class MarketDataCleaner:
         return df
 
     @staticmethod
-    def clean_data(df: pd.DataFrame, normalize: bool = True, z_score: bool = True) -> pd.DataFrame:
+    def clean_data(
+        df: pd.DataFrame, 
+        normalize: bool = True, 
+        z_score: bool = True
+    ) -> pd.DataFrame:
         """
         Cleans and normalizes OHLCV data by handling missing values, outliers, and scaling prices.
 

@@ -59,7 +59,12 @@ class FeatureEngineer:
         return hma
 
     @staticmethod
-    def _calculate_keltner_channels(df: pd.DataFrame, ema_period: int = 20, atr_period: int = 14, multiplier: float = 2.0) -> Tuple[pd.Series, pd.Series, pd.Series]:
+    def _calculate_keltner_channels(
+        df: pd.DataFrame, 
+        ema_period: int = 20, 
+        atr_period: int = 14, 
+        multiplier: float = 2.0
+    ) -> Tuple[pd.Series, pd.Series, pd.Series]:
         """
         Calculates Keltner Channels using EMA and ATR.
 
@@ -95,7 +100,8 @@ class FeatureEngineer:
     @staticmethod
     def add_ta_features(df: pd.DataFrame) -> pd.DataFrame:
         """
-        Adds technical indicators to the input DataFrame for trading analysis, covering trend, momentum, volume, volatility, and support/resistance.
+        Adds technical indicators to the input DataFrame for trading analysis, covering trend, momentum, 
+        volume, volatility, and support/resistance.
 
         Args:
             df (pd.DataFrame): Input DataFrame with columns 'open', 'high', 'low', 'close', 'volume', and 'time' as datetime index.
