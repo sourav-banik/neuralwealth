@@ -1,5 +1,5 @@
 from typing import Any, Dict, Optional, Type
-import json
+import json, re
 import pandas as pd
 from neuralwealth.ai_lab.hypothesis.resources.llm_refinement_prompts import LLM_REFINEMENT_PROMPT
 from neuralwealth.ai_lab.utils.llm_client import LLMClient
@@ -81,8 +81,8 @@ class HypothesisRefiner:
 
         # Call LLM client
         try:
-            response = self.llm_client.call(prompt)
-            refined_hypothesis = json.loads(response) if isinstance(response, str) else response
+            response = self.llm_client.call(prompt, "refinement")
+            refined_hypothesis = json.loads(re.search(r"\{.*\}", response, re.DOTALL).group())
             if refined_hypothesis:
                 # Ensure required fields are updated
                 refined_hypothesis["id"] = f"{hypothesis.get('id', 'unknown')}_refined"
