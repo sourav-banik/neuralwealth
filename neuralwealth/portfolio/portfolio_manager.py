@@ -10,7 +10,7 @@ from neuralwealth.portfolio.rebalancer.optimizer import PortfolioOptimizer
 from neuralwealth.portfolio.rebalancer.compliance import ComplianceEngine
 from neuralwealth.portfolio.execution.broker_api import InteractiveBrokersClient
 from neuralwealth.portfolio.execution.paper_trading import PaperTradingEngine
-from neuralwealth.portfolio.utils.influxdb_client import InfluxDBQuery
+from neuralwealth.portfolio.utils.training_data_client import InfluxDBQuery
 from neuralwealth.portfolio.utils.strategy_loader import StrategyLoader
 
 def env_creator(env_config: Dict):
