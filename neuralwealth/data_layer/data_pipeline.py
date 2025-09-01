@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+import pandas as pd
 
 # Scraper modules
 from neuralwealth.data_layer.collectors.market_data import MarketDataCollector
@@ -6,8 +7,11 @@ from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentColle
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
 from neuralwealth.data_layer.collectors.financials_data import FinancialsCollector
 from neuralwealth.data_layer.collectors.ticker_collector import TickerCollector
+
+# Processor modules
 from neuralwealth.data_layer.processors.cleaner import MarketDataCleaner
 from neuralwealth.data_layer.processors.feature_engineer import FeatureEngineer
+from neuralwealth.data_layer.processors.causal import CausalAnalyzer
 
 # Storage module
 from neuralwealth.data_layer.storage.influxdb_storage import InfluxDBStorage
@@ -37,8 +41,10 @@ class DataPipeline:
         self.fred_collector = FREDCollector(config["fred_api_key"])
         self.financials_collector = FinancialsCollector()
         self.ticker_collector = TickerCollector()
+        #Initialize processors
         self.market_data_cleaner = MarketDataCleaner()
         self.feature_engineer = FeatureEngineer()
+        self.causal_analyzer = CausalAnalyzer()
         
         # Initialize InfluxDB storage
         self.db_client = InfluxDBStorage(
@@ -58,7 +64,7 @@ class DataPipeline:
         """
         return self.ticker_collector.collect_tickers() if self.env == 'production' else dummy_tickers
 
-    def _process_ticker_data(self, ticker: Dict[str, Any]) -> None:
+    def _process_ticker_data(self, ticker: Dict[str, Any]) -> pd.DataFrame:
         """
         Processes and stores data for a single ticker, including basic info, market data,
         financials (for stocks), and news sentiment.
@@ -94,6 +100,9 @@ class DataPipeline:
             time_col='time'
         )
 
+        # Initialize combined DataFrame with market data, excluding tag columns
+        combined_df = market_df.drop(columns=['ticker', 'asset_class', 'market']).set_index('time')
+
         # Collect and store financials for stocks
         if ticker['asset_class'] == 'stock':
             financials = self.financials_collector.get_financials(ticker['ticker'])
@@ -125,6 +134,7 @@ class DataPipeline:
             tag_columns=['ticker', 'asset_class', 'market'],
             time_col='time'
         )
+        return combined_df
 
     def run_pipeline(self, tickers: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -138,23 +148,49 @@ class DataPipeline:
                 of macro indicators and tickers processed.
         """
         try:
-            # Process macro data in batches
             macro_data = self.fred_collector.fetch_all()
+            combined_macro = None
+
             for series_name, df in macro_data.items():
                 if not df.empty:
                     df.columns = [series_name]
                     df.index.name = "time"
                     df.reset_index(inplace=True)
-                    self.db_client.write_dataframe(
-                        df,
-                        "macro_data",
-                        [],
-                        "time"
-                    )
+
+                    if combined_macro is None:
+                        combined_macro = df
+                    else:
+                        combined_macro = combined_macro.merge(df, on="time", how="outer")
+
+            # Write the combined DataFrame to the database
+            if combined_macro is not None:
+                self.db_client.write_dataframe(
+                    combined_macro,
+                    "macro_data",
+                    [],
+                    "time"
+                )
+                combined_macro.set_index("time", inplace=True)
         
             # Process ticker data
             for ticker in tickers:
-                self._process_ticker_data(ticker)
+                ticker_details = self._process_ticker_data(ticker)
+                # Learn causal relationships
+                graph = self.causal_analyzer.learn_causal_graph(
+                    market_data=ticker_details,
+                    macro_data=combined_macro 
+                )
+                # Get human-readable explanations
+                explanations = self.causal_analyzer.explain_relationships(graph)
+                explanations['ticker'] = ticker['ticker']
+                explanations['asset_class'] = ticker['asset_class']
+                explanations['market'] = ticker['market']
+                explanations['time'] = pd.Timestamp.now().isoformat()
+                self.db_client.write_dataframe(
+                    df = explanations, 
+                    measurement= 'causal_relationships',
+                    tag_columns=['ticker', 'asset_class', 'market'],
+                )
 
             return {
                 "status": "success",
