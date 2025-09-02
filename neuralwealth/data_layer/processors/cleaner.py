@@ -152,7 +152,7 @@ class MarketDataCleaner:
             result['volume'] = result['volume'].where(result['volume'] >= 0, pd.NA)
             result['volume'] = result['volume'].interpolate(method='linear', limit_direction='both').ffill().bfill()
             volume_upper = result['volume'].quantile(0.99)
-            result['volume'] = result['volume'].astype(float).clip(upper=volume_upper).infer_objects(copy=False)
+            result['volume'] = result['volume'].astype(float).clip(upper=volume_upper).infer_objects()
 
         result = MarketDataCleaner._handle_outliers(result, ['open', 'high', 'low', 'close'])
 

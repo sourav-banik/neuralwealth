@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import talib
 from typing import Tuple
 
@@ -171,5 +172,17 @@ class FeatureEngineer:
         result['pivot'] = pivot
         result['s1'] = support1
         result['r1'] = resistance1
+
+        # Price Transformations
+        df['log_returns'] = np.log(df['close']/df['close'].shift(1))
+        
+        # Volatility Features
+        df['realized_vol_30d'] = df['log_returns'].rolling(30).std() * np.sqrt(252)
+        
+        # Liquidity Features
+        df['avg_spread_pct'] = (df['high'] - df['low'])/df['close']
+        
+        # Event-Driven Features
+        df['gap_up'] = (df['open'] > df['close'].shift(1) * 1.03).astype(int)
 
         return result

@@ -142,7 +142,7 @@ class InfluxDBStorage:
             
         except Exception as e:
             raise ValueError(f"Influx write failed: {str(e)}")
-    
+
     def close(self) -> None:
         """
         Closes the InfluxDB client and flushes pending writes.
