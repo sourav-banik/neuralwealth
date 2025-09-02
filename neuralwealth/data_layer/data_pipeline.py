@@ -1,26 +1,24 @@
 from typing import Dict, Any, List
 import pandas as pd
-
 # Scraper modules
 from neuralwealth.data_layer.collectors.market_data import MarketDataCollector
 from neuralwealth.data_layer.collectors.news_sentiment import NewsSentimentCollector
 from neuralwealth.data_layer.collectors.macro_data import FREDCollector
 from neuralwealth.data_layer.collectors.financials_data import FinancialsCollector
 from neuralwealth.data_layer.collectors.ticker_collector import TickerCollector
-
 # Processor modules
 from neuralwealth.data_layer.processors.cleaner import MarketDataCleaner
 from neuralwealth.data_layer.processors.feature_engineer import FeatureEngineer
 from neuralwealth.data_layer.processors.causal import CausalAnalyzer
-
 # Storage module
 from neuralwealth.data_layer.storage.influxdb_storage import InfluxDBStorage
-
 # Test tickers
 from neuralwealth.data_layer.test_tickers import dummy_tickers
-
 # Utils
 from neuralwealth.data_layer.utils.yahoo_finance import get_yahoo_symbol
+# synthetic data
+from neuralwealth.data_layer.generators.quick_findiff import QuickFinDiff
+from neuralwealth.data_layer.generators.simplified_findiff_generator import SimplifiedFinDiffGenerator
 
 class DataPipeline:
     """Manages the data collection and storage pipeline for financial data."""
@@ -41,10 +39,16 @@ class DataPipeline:
         self.fred_collector = FREDCollector(config["fred_api_key"])
         self.financials_collector = FinancialsCollector()
         self.ticker_collector = TickerCollector()
-        #Initialize processors
+        
+        # Initialize processors
         self.market_data_cleaner = MarketDataCleaner()
         self.feature_engineer = FeatureEngineer()
         self.causal_analyzer = CausalAnalyzer()
+
+        # Synthetic data generator
+        self.generator = QuickFinDiff()
+        # Full FinDiff (with training)
+        #findiff = SimplifiedFinDiffGenerator()
         
         # Initialize InfluxDB storage
         self.db_client = InfluxDBStorage(
@@ -97,6 +101,27 @@ class DataPipeline:
             df=market_df,
             measurement="market_info",
             tag_columns=['ticker', 'asset_class', 'market'],
+            time_col='time'
+        )
+
+        """
+        # Full FinDiff (with training)
+        self.findiff.train(clean_market_data, epochs=500)
+        scenarios = self.findiff.generate_crash_scenario(clean_market_data, num_scenarios=3)
+        for i, scenario in enumerate(scenarios):
+            self.db_client.write_dataframe(
+                df=scenario,
+                measurement="findiff_scenarios",
+                tag_columns=['ticker', 'asset_class', 'market', 'scenario_type'],
+                time_col='time'
+            )
+        """
+        # generate and store synthetic data simplified version
+        crash_2008 = self.generator.generate_scenario(market_df, "2008")
+        self.db_client.write_dataframe(
+            df=crash_2008,
+            measurement="findiff_scenarios",
+            tag_columns=['ticker', 'asset_class', 'market', 'scenario_type'],
             time_col='time'
         )
 
