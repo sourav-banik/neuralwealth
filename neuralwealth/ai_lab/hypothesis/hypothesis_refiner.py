@@ -17,25 +17,24 @@ class HypothesisRefiner:
         self.llm_client = llm_client
 
     def refine(
-            self, 
-            hypothesis: Dict, 
-            backtest_results: Dict[str, Dict[str, Any]], 
-            crash_results: Dict[str, Dict[str, Any]], 
-            criteria: Dict[str, float]
-        ) -> Optional[Dict]:
+        self, 
+        strategy: Dict,
+        criteria: Dict[str, float]
+    ) -> Optional[Dict]:
         """
         Refine a hypothesis using the LLM client.
 
         Args:
-            hypothesis: Original hypothesis dictionary.
-            backtest_results: Dictionary of {ticker: results_dict} from backtesting.
-            crash_results: Dictionary of {crash_name: results_dict} from crash testing.
+            hypothesis: Tested hypothesis dictionary.
             criteria: Performance criteria for refinement constraints.
 
         Returns:
             Optional[Dict]: Refined hypothesis or None if refinement fails.
         """
         # Prepare context for refinement
+        backtest_results = strategy["test_results"]["historical"]
+        crash_results = strategy["test_results"]["synthetic_crashes"]
+        hypothesis = (lambda s: s.pop('test_results') and s)(strategy)
         context = {
             "hypothesis": hypothesis,
             "backtest_results": {

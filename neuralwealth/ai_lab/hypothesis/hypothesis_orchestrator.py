@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Type
 from neuralwealth.ai_lab.hypothesis.hypothesis_initializer import HypothesisInitializer
 from neuralwealth.ai_lab.hypothesis.hypothesis_optimizer import HypothesisOptimizer
+from neuralwealth.ai_lab.hypothesis.z3_prover import Z3TheoremProver
 from neuralwealth.ai_lab.utils.llm_client import LLMClient
 
 class HypothesisOrchestrator:
@@ -29,6 +30,7 @@ class HypothesisOrchestrator:
         self.initializer = HypothesisInitializer(db_url, db_token, db_org, db_bucket)
         self.llm_client = llmClient
         self.optimizer = HypothesisOptimizer(self.initializer.schema)
+        self.theorem_prover = Z3TheoremProver()
 
     def _optimize_hypotheses_for_phase(
         self, 
@@ -94,7 +96,8 @@ class HypothesisOrchestrator:
                 phase_input = self._optimize_hypotheses_for_phase(
                     phase_input, context, constraints, phase, group_name
                 )
-
+                if phase == "final":
+                    phase_input = self._filter_inconsistent_hypotheses(phase_input)
             hypotheses.extend(phase_input)
 
         return self._format_output(hypotheses)
@@ -140,3 +143,22 @@ class HypothesisOrchestrator:
                 if term in strength:
                     score += 0.2 if key == "strong" else 0.1 if key == "medium" else -0.1
         return min(max(score, 0.1), 0.99)
+    
+    def _filter_inconsistent_hypotheses(self, hypotheses: List[Dict]) -> List[Dict]:
+        """Filter out logically inconsistent hypotheses"""
+        consistent_hypotheses = []
+        
+        for hypothesis in hypotheses:
+            consistency_check = self.theorem_prover.check_consistency(hypothesis)
+            
+            if consistency_check["is_consistent"]:
+                # Add consistency info to hypothesis
+                hypothesis["logical_consistency"] = {
+                    "checked_constraints": consistency_check["constraints_checked"],
+                    "is_consistent": True
+                }
+                consistent_hypotheses.append(hypothesis)
+            else:
+                print(f"Filtered inconsistent hypothesis: {consistency_check['counterexample']}")
+                
+        return consistent_hypotheses

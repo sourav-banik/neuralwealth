@@ -19,11 +19,11 @@ class ResultEvaluator:
                 Defaults to predefined values if None.
         """
         self.criteria = criteria or {
-            "min_sharpe": -float('inf'),
-            "max_drawdown": float('inf'),
-            "min_total_return": -float('inf'),
-            "max_crash_drawdown": float('inf'),
-            "min_crash_return": -float('inf')
+            "min_sharpe": 1.0,  # Minimum Sharpe ratio
+            "max_drawdown": 10.0,  # Maximum drawdown percentage
+            "min_total_return": 0.0,  # Minimum total return
+            "max_crash_drawdown": 15.0,  # Maximum drawdown in crash periods
+            "min_crash_return": -0.05  # Minimum return in crash periods
         }
 
     def evaluate_results(
