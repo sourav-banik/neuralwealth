@@ -1,260 +1,221 @@
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-from ray import tune
-from neuralwealth.portfolio.rl_agent.inferencer import PortfolioInferencer
-from neuralwealth.portfolio.rl_agent.trainer import PortfolioTrainer
-from neuralwealth.portfolio.rl_agent.environment import PortfolioEnv
-from neuralwealth.portfolio.rebalancer.optimizer import PortfolioOptimizer
-from neuralwealth.portfolio.rebalancer.compliance import ComplianceEngine
-from neuralwealth.portfolio.execution.broker_api import InteractiveBrokersClient
-from neuralwealth.portfolio.execution.paper_trading import PaperTradingEngine
-from neuralwealth.portfolio.utils.training_data_client import InfluxDBQuery
-from neuralwealth.portfolio.utils.strategy_loader import StrategyLoader
-
-def env_creator(env_config: Dict):
-    return PortfolioEnv(env_config)
-
-tune.register_env("PortfolioEnv", env_creator)
+from typing import Dict, List, Any
+from neuralwealth.portfolio.optimization.cvar_optimizer import CVaROptimizer
+from neuralwealth.portfolio.execution.broker_connector import BrokerConnector
+from neuralwealth.portfolio.execution.risk_manager import RiskManager
+from neuralwealth.portfolio.execution.audit_logger import AuditLogger
+from neuralwealth.portfolio.optimization.personalized_recommender import PersonalizedRecommender 
 
 class PortfolioManager:
-    """Manages portfolio rebalancing using RL, optimization, and execution."""
-
+    """Main controller for portfolio management and rebalancing"""
+    
     def __init__(self, config: Dict[str, Any]):
         """
-        Initialize the PortfolioManager with configuration.
-
+        Initialize portfolio manager
+        
         Args:
-            config: Dictionary containing:
-                - model_path: Path to trained RL model.
-                - env: RL environment.
-                - env_config: Environment config (e.g., assets, state_size).
-                - max_risk: Maximum portfolio volatility.
-                - transaction_cost: Cost per unit of turnover.
-                - max_turnover: Maximum allowable turnover.
-                - constraints: Compliance constraints (sector, liquidity, ESG, leverage).
-                - live: Boolean for live vs. paper trading.
-                - rebalance_schedule: Rebalancing frequency (e.g., "weekly", "monthly").
-                - retrain_schedule: Retraining frequency (e.g., "monthly", "quarterly").
-                - train_on_init: Boolean to train RL agent on initialization.
-                - episodes: Number of training episodes for RL agent.
-                - influxdb_url, influxdb_token, influxdb_org, influxdb_bucket: InfluxDB details.
+            config: Dictionary of portfolio management configuration
         """
-        self.rl_agent = PortfolioInferencer(config["model_path"], config["env"])
-        self.optimizer = PortfolioOptimizer(
-            max_risk=config.get("max_risk", 0.2),
-            transaction_cost=config.get("transaction_cost", 0.001),
-            max_turnover=config.get("max_turnover", 0.1)
+        self.user_constraints = config["constraints"]
+        self.optimizer = CVaROptimizer()
+        self.broker = BrokerConnector(broker_type=config["broker_type"])
+        self.risk_manager = RiskManager(self.user_constraints)
+        self.audit_logger = AuditLogger()
+        self.recommender = PersonalizedRecommender(config["user_id"])
+        
+    def rebalance_portfolio(self, strategies: List[Dict], market_data: pd.DataFrame, 
+                          historical_returns: pd.DataFrame = None) -> Dict:
+        """
+        Main rebalancing method using personalized recommendations
+        """
+        # 1. Get current portfolio state
+        current_portfolio = self.broker.get_portfolio()
+        current_weights = current_portfolio.get('weights', {})
+        
+        # 2. Get personalized recommendations
+        fl_weights = self.recommender.get_personalized_recommendation(market_data, current_weights)
+        
+        # 3. Generate target weights from strategies
+        strategy_weights = self._aggregate_strategies(strategies, market_data)
+        
+        # 4. Blend recommendations
+        target_weights = self.recommender.blend_recommendations(fl_weights, strategy_weights)
+        
+        # 5. CVaR Optimization
+        expected_returns = self._estimate_expected_returns(market_data)
+        cov_matrix = self._estimate_covariance_matrix(market_data, historical_returns)
+        
+        optimized_weights = self.optimizer.optimize(
+            expected_returns, cov_matrix, target_weights, historical_returns
         )
-        self.compliance = ComplianceEngine(config["constraints"])
-        self.executor = InteractiveBrokersClient() if config.get("live", False) else PaperTradingEngine()
-        self.data_client = InfluxDBQuery(
-            url=config["influxdb_url"],
-            token=config["influxdb_token"],
-            org=config["influxdb_org"],
-            bucket=config["influxdb_bucket"]
+        
+        # 6. Validate against constraints
+        if not self.risk_manager.validate_weights(optimized_weights, market_data):
+            print("Optimized weights violate constraints - using current weights")
+            optimized_weights = current_weights
+        
+        # 7. Generate orders
+        orders = self._generate_orders(current_portfolio, optimized_weights, market_data)
+        
+        # 8. Pre-trade checks
+        validated_orders = self.risk_manager.pre_trade_check(orders, market_data)
+        
+        # 9. Execute approved orders
+        approved_orders = [order for order in validated_orders if order.get('status') == 'APPROVED']
+        execution_results = self.broker.execute_orders(approved_orders)
+        
+        # 10. Record learning experience
+        market_features = self.recommender.extract_market_features(market_data, current_weights)
+        self.recommender.record_learning_experience(market_features, optimized_weights, execution_results)
+        
+        # 11. Log audit trail
+        audit_id = self.audit_logger.log_rebalance(
+            current_weights, optimized_weights, execution_results, self.user_constraints
         )
-        self.strategy_loader = StrategyLoader()
-        self.rebalance_schedule = config.get("rebalance_schedule", "weekly")
-        self.retrain_schedule = config.get("retrain_schedule", "monthly")
-        self.train_on_init = config.get("train_on_init", False)
-        self.episodes = config.get("episodes", 100)
-        self.model_path = config["model_path"]
-        self.env_config = config["env_config"]
-        self.last_rebalance = None
-        self.last_retrain = None
+        
+        return {
+            'success': True,
+            'orders_approved': len(approved_orders),
+            'orders_executed': len(execution_results),
+            'new_weights': optimized_weights,
+            'fl_weights': fl_weights,
+            'strategy_weights': strategy_weights,
+            'audit_id': audit_id
+        }
+    
+    def _extract_market_features(self, market_data: pd.DataFrame, current_weights: Dict) -> Dict:
+        """Extract features for federated learning model"""
+        features = {}
+        
+        if not market_data.empty:
+            for asset, data in market_data.iterrows():
+                # Basic market features
+                features[f"{asset}_price"] = data.get('price', 100)
+                features[f"{asset}_volume"] = data.get('volume', 1000000)
+                features[f"{asset}_volatility"] = data.get('volatility', 0.02)
+                features[f"{asset}_momentum"] = data.get('momentum', 0.0)
+                
+                # Portfolio context features
+                features[f"{asset}_current_weight"] = current_weights.get(asset, 0.0)
+        
+        # Market-wide features
+        features['market_volatility'] = market_data.get('volatility', 0.015).mean() if not market_data.empty else 0.015
+        features['market_momentum'] = market_data.get('momentum', 0.0).mean() if not market_data.empty else 0.0
 
-        # Train RL agent on initialization if specified
-        if self.train_on_init:
-            self.train_rl_agent()
-
-    def _is_rebalance_due(self, schedule: str) -> bool:
-        """
-        Check if rebalancing is due based on the schedule.
-
-        Args:
-            schedule: Rebalancing frequency ("daily", "weekly", "monthly").
-
-        Returns:
-            bool: True if rebalancing is due.
-        """
-        try:
-            if self.last_rebalance is None:
-                return True
-            now = datetime.now()
-            delta_map = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1), "monthly": timedelta(days=30)}
-            if now - self.last_rebalance >= delta_map.get(schedule, timedelta(weeks=1)):
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def _is_retrain_due(self, schedule: str) -> bool:
-        """
-        Check if RL agent retraining is due based on the schedule.
-
-        Args:
-            schedule: Retraining frequency ("monthly", "quarterly").
-
-        Returns:
-            bool: True if retraining is due.
-        """
-        try:
-            if self.last_retrain is None:
-                return True
-            now = datetime.now()
-            delta_map = {"monthly": timedelta(days=30), "quarterly": timedelta(days=90)}
-            if now - self.last_retrain >= delta_map.get(schedule, timedelta(days=30)):
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def train_rl_agent(self) -> Dict:
-        """
-        Train or retrain the RL agent using PortfolioTrainer.
-
-        Returns:
-            Dict: Training metrics (e.g., mean_reward).
-        """
-        try:
-            trainer = PortfolioTrainer({
-                "env": self.rl_agent.env,
-                "env_config": self.env_config,
-                "reward_weights": {"sharpe": 0.5, "drawdown": 0.3, "crash_return": 0.2},
-                "num_workers": 4
-            })
-            result = trainer.train(episodes=self.episodes)
-            # Save trained model
-            checkpoint_path = self.model_path
-            result["algo"].save(checkpoint_path)
-            # Reload RL agent with new model
-            self.rl_agent = PortfolioInferencer(self.model_path, self.rl_agent.env)
-            self.last_retrain = datetime.now()
-            return {"status": "success", "metrics": {"mean_reward": result["mean_reward"]}}
-        except Exception as e:
-            return {"status": "failed", "reason": str(e)}
-
-    def prepare_strategy_inputs(self, hypothesis: Dict) -> Dict:
-        """
-        Prepare inputs for optimization from hypothesis data.
-
-        Args:
-            hypothesis: Hypothesis dictionary with assets, backtest_results, and crash_results.
-
-        Returns:
-            Dict: Strategy inputs with expected returns, covariance matrix, and assets.
-        """
-        try:
-            assets = [asset["ticker"] for asset in hypothesis["hypothesis"]["assets"]]
-            # Fetch market data
-            fields = ["close", "rsi_14", "volume", "esg_score"]
-            data = self.data_client.get_asset_data(assets, fields, "2023-01-01", "2025-07-31")
+        
+        return features
+    
+    def _estimate_expected_returns(self, market_data: pd.DataFrame) -> Dict[str, float]:
+        """Simple expected returns estimation"""
+        expected_returns = {}
+        if not market_data.empty:
+            for asset in market_data.index.tolist():
+                if 'expected_return' in market_data.index:
+                    expected_returns[asset] = market_data.loc['expected_return', asset]
+                else:
+                    expected_returns[asset] = 0.0005
+        return expected_returns
+    
+    def _estimate_covariance_matrix(self, market_data: pd.DataFrame, 
+                                  historical_returns: pd.DataFrame = None) -> pd.DataFrame:
+        """Estimate covariance matrix"""
+        if historical_returns is not None and not historical_returns.empty:
+            # Use historical returns if available
+            return historical_returns.cov()
+        else:
+            # Simple diagonal covariance matrix
+            assets = market_data.index.tolist() if not market_data.empty else []
+            n_assets = len(assets)
+            cov_matrix = pd.DataFrame(
+                np.eye(n_assets) * 0.0004,  # 20% annual vol default
+                index=assets,
+                columns=assets
+            )
+            return cov_matrix
+    
+    def _generate_orders(self, current_portfolio: Dict, target_weights: Dict, market_data: pd.DataFrame) -> List[Dict]:
+        """Generate buy/sell orders to reach target weights"""
+        orders = []
+        current_weights = current_portfolio.get('weights', {})
+        total_value = current_portfolio.get('total_value', 100000)
+        
+        for asset, target_weight in target_weights.items():
+            current_weight = current_weights.get(asset, 0)
             
-            # Derive returns from backtest_results
-            returns = {}
-            for asset in assets:
-                backtest_result = hypothesis["backtest_results"].get(asset, {})
-                returns[asset] = backtest_result.get("returns", {}).get("rtot", 0.0)
-            # Simulate covariance matrix (mock: replace with historical data if needed)
-            n = len(assets)
-            cov_matrix = pd.DataFrame(np.eye(n) * 0.1, index=assets, columns=assets)  # Diagonal covariance
-            for i, asset1 in enumerate(assets):
-                for j, asset2 in enumerate(assets):
-                    if i != j:
-                        cov_matrix.loc[asset1, asset2] = 0.02  # Mock correlation
-            
-            strategy_inputs = {
-                "expected_returns": returns,
-                "cov_matrix": cov_matrix,
-                "assets": hypothesis["hypothesis"]["assets"],
-                "hypothesis_id": hypothesis["hypothesis"]["id"],
-                "restricted_assets": hypothesis["hypothesis"].get("restricted_assets", [])
-            }
-            return strategy_inputs
-        except Exception as e:
+            if abs(target_weight - current_weight) > 0.001:
+                # Get current price from market data
+                current_price = 100  # Default
+                if not market_data.empty and asset in market_data.index:
+                    current_price = market_data.loc[asset].get('price', 100)
+                
+                order_value = abs(target_weight - current_weight) * total_value
+                quantity = order_value / current_price
+                
+                order = {
+                    'asset': asset,
+                    'action': 'BUY' if target_weight > current_weight else 'SELL',
+                    'quantity': quantity,
+                    'current_price': current_price
+                }
+                orders.append(order)
+        
+        return orders
+    
+    def _aggregate_strategies(self, strategies: List[Dict], market_data: pd.DataFrame) -> Dict[str, float]:
+        """Simple strategy aggregation - average of all strategy weights"""
+        if not strategies:
             return {}
-
-    def rebalance(self, market_state: Dict, hypotheses: List[Dict]) -> Dict:
-        """
-        End-to-end rebalancing workflow.
-
-        Args:
-            market_state: Current market data (prices, indicators, macro).
-            hypotheses: List of hypotheses with backtest_results and crash_results.
-
-        Returns:
-            Dict: Rebalancing result with status and weights.
-        """
-        try:
-            # Check if retraining is due
-            if self._is_retrain_due(self.retrain_schedule):
-                retrain_result = self.train_rl_agent()
-                if retrain_result["status"] != "success":
-                    return {"status": "skipped", "reason": retrain_result['reason']}
-
-            if not self._is_rebalance_due(self.rebalance_schedule):
-                return {"status": "skipped", "reason": "not_due"}
-
-            # Select top hypotheses
-            selected_hypotheses = self.strategy_loader.select_strategies(hypotheses, top_n=3)
-            if not selected_hypotheses:
-                return {"status": "failed", "reason": "no_hypotheses"}
-
-            # Combine strategy weights
-            all_weights = {}
-            for hypothesis in selected_hypotheses:
-                strategy = self.prepare_strategy_inputs(hypothesis)
-                if not strategy:
-                    continue
-
-                # Build RL state
-                current_portfolio = self.executor.get_portfolio()
-                state = self.rl_agent.build_state(
-                    portfolio=current_portfolio,
-                    market_data=market_state.get("market", {}),
-                    macro_data=market_state.get("macro", {}),
-                    hypothesis=hypothesis["hypothesis"]
-                )
-                # RL Agent proposes action
-                action = self.rl_agent.get_action(state)
-                if action["type"] == "hold":
-                    continue
-
-                # Optimize weights
-                weights = self.optimizer.optimize(
-                    strategy["expected_returns"],
-                    strategy["cov_matrix"],
-                    current_weights=current_portfolio,
-                    strategy=strategy
-                )
-                if not weights:
-                    continue
-
-                # Validate against constraints
-                assets_df = pd.DataFrame(strategy["assets"]).set_index("ticker")
-                assets_df["volume"] = [market_state.get("market", {}).get(ticker, {}).get("volume", 0) for ticker in assets_df.index]
-                assets_df["esg_score"] = [market_state.get("market", {}).get(ticker, {}).get("esg_score", 0) for ticker in assets_df.index]
-                assets_df["sector"] = [asset.get("sector", "Unknown") for asset in strategy["assets"]]
-                if not self.compliance.validate(weights, assets_df):
-                    continue
-
-                # Execute trades
-                for asset, weight in weights.items():
-                    if weight > 0:
-                        action_type = "buy" if asset not in current_portfolio or current_portfolio[asset] < weight else "sell"
-                        quantity = abs(weight - current_portfolio.get(asset, 0)) * 1000  # Mock position sizing
-                        price = market_state.get("market", {}).get(asset, {}).get("close", 100.0)
-                        trade_result = self.executor.execute(asset, action_type, quantity, price)
-                        if trade_result["status"] != "success":
-                            continue
+            
+        # Simple average of strategy weights
+        all_weights = {}
+        weight_count = {}
+        
+        for strategy in strategies:
+            # Extract weights from strategy (simplified)
+            strategy_weights = self._extract_weights_from_strategy(strategy, market_data)
+            
+            for asset, weight in strategy_weights.items():
+                if asset in all_weights:
+                    all_weights[asset] += weight
+                    weight_count[asset] += 1
+                else:
                     all_weights[asset] = weight
-
-            if not all_weights:
-                return {"status": "failed", "reason": "no_valid_weights"}
-
-            self.last_rebalance = datetime.now()
-            return {"status": "success", "weights": all_weights}
-        except Exception as e:
-            return {"status": "failed", "reason": str(e)}
+                    weight_count[asset] = 1
+        
+        # Average the weights
+        avg_weights = {asset: weight / weight_count[asset] for asset, weight in all_weights.items()}
+        
+        # Normalize to sum to 1
+        total = sum(avg_weights.values())
+        if total > 0:
+            return {asset: weight / total for asset, weight in avg_weights.items()}
+        
+        return avg_weights
+    
+    def _extract_weights_from_strategy(self, strategy: Dict, market_data: pd.DataFrame) -> Dict[str, float]:
+        """Extract portfolio weights from strategy object"""
+        # Simplified extraction - in real implementation, this would use strategy logic
+        assets = strategy.get('assets', [])
+        if isinstance(assets, list) and len(assets) > 0:
+            # Equal weight for all assets in strategy
+            weight = 1.0 / len(assets)
+            return {asset: weight for asset in assets}
+        return {}
+    
+    def get_portfolio_status(self) -> Dict:
+        """Get current portfolio status"""
+        return self.broker.get_portfolio()
+    
+    def get_audit_logs(self, log_type: str = None, limit: int = 100) -> List[Dict]:
+        """Get audit log entries"""
+        return self.audit_logger.get_logs(log_type, limit)
+    
+    def get_recommendation_info(self) -> Dict:
+        """Get information about personalized recommendations"""
+        return self.recommender.get_model_info()
+    
+    def cleanup(self):
+        """Clean up resources"""
+        if hasattr(self.broker, 'disconnect'):
+            self.broker.disconnect()

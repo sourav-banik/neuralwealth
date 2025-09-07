@@ -17,7 +17,6 @@ class HypothesisEngine(BaseAgent):
             config["influxdb_org"],
             config["influxdb_bucket"]
         )
-        self.prover = Z3TheoremProver()
         self.rule_filter = RuleBasedFilter()
         
     def execute(self, research_params: Dict) -> List[Dict]:
