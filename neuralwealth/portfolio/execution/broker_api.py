@@ -16,7 +16,7 @@ class InteractiveBrokersClient:
         try:
             self.ib.connect(host, port)
         except Exception as e:
-            raise
+            raise ConnectionError(f"Failed to connect to IBKR: {str(e)}")
 
     def execute_order(self, asset: str, action: str, quantity: float) -> Dict:
         """
@@ -34,7 +34,13 @@ class InteractiveBrokersClient:
             contract = Stock(asset, 'SMART', 'USD')
             order = self.ib.marketOrder(action.upper(), quantity)
             trade = self.ib.placeOrder(contract, order)
-            return {"status": "success", "trade_id": trade.order.orderId}
+            return {
+                "status": "success", 
+                "trade_id": trade.order.orderId,
+                "action": action,
+                "quantity": quantity,
+                "asset": asset
+            }
         except Exception as e:
             return {"status": "failed", "reason": str(e)}
 
@@ -46,7 +52,20 @@ class InteractiveBrokersClient:
             Dict: Current holdings with asset symbols and quantities.
         """
         try:
-            portfolio = {pos.contract.symbol: pos.position for pos in self.ib.portfolio()}
+            portfolio = {}
+            for pos in self.ib.portfolio():
+                portfolio[pos.contract.symbol] = {
+                    'position': pos.position,
+                    'market_price': pos.marketPrice,
+                    'market_value': pos.marketValue
+                }
             return portfolio
         except Exception as e:
-            return {}
+            return {"error": str(e)}
+
+    def disconnect(self):
+        """Disconnect from IBKR"""
+        try:
+            self.ib.disconnect()
+        except:
+            pass

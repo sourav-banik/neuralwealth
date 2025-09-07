@@ -1,7 +1,6 @@
 from typing import List, Dict, Any
 from neuralwealth.ai_lab.agents.base_agent import BaseAgent
 from neuralwealth.ai_lab.knowledge_graph.neo4j_connector import Neo4jConnector
-from neuralwealth.ai_lab.utils.result_evaluator import ResultEvaluator
 
 class KGCurator(BaseAgent):
     """Agent 3: Builds causal knowledge graphs from validated strategies"""
