@@ -1,6 +1,5 @@
-from typing import Dict, List, Any
+from typing import Dict, List
 import pandas as pd
-import numpy as np
 
 class RiskManager:
     """Enhanced risk manager with pre-trade checks and slippage modeling"""

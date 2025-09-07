@@ -1,0 +1,10 @@
+To run chat interface:
+python -m neuralwealth.ui.web.chat
+
+To generate dashboard:
+python -m neuralwealth.ui.web.dash.main
+
+CLI commands:
+python -m neuralwealth.ui.cli.commands status
+python -m neuralwealth.ui.cli.commands chat "Why did you buy AAPL?"
+python -m neuralwealth.ui.cli.commands rebalance --session-id YOUR_SESSION_ID
