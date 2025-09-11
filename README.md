@@ -2,7 +2,7 @@ NeuralWealth: Autonomous Financial Scientist
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-blue)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
-![Research Prototype](https://img.shields.io/badge/Status-Research%2520Prototype-orange)
+![Research Prototype](https://img.shields.io/badge/Status-Research%20Prototype-orange)
 
 🎯 Purpose
 
@@ -73,7 +73,7 @@ Location: neuralwealth/ui/
     Audit Trail: Comprehensive logging for regulatory compliance
 
 # Clone the repository
-git clone https://github.com/sourav-banik/neuralwealth.git
+git clone https://github.com/sourav-banik/neuralwealth.git <br />
 cd neuralwealth
 
 # Install dependencies
@@ -81,7 +81,9 @@ pip install -r requirements.txt
 
 
 # Quick Start
-python neuralwealth/main.py
+python -m neuralwealth/main.py <br />
+python -m neuralwealth.ui.web.chat<br />
+python -m neuralwealth.ui.api.rest
 
 🎨 Key Features
 🔍 Autonomous Research
